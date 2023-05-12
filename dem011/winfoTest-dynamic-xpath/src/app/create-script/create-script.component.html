@@ -1,0 +1,31 @@
+
+
+<div>
+    <h2>URL</h2>
+    <input [(ngModel)]="scriptsJson.url">
+</div>
+
+<button (click)="addRow()">Add Row</button>
+<button (click)="removeLastRow()">Remove Last Row</button>
+<table>
+  <thead>
+    <tr>
+      <th>Input Parameter</th>
+      <th>Action</th>
+      <th>Input Value</th>
+      <!-- <th>Total</th> -->
+    </tr>
+  </thead>
+  <tbody>
+    <tr *ngFor="let item of tableData">
+      <td><input [(ngModel)]="item.inputParameter"></td>
+      <td><select name="search" id="search" [(ngModel)]="item.action">
+        <option *ngFor="let action of actionArray">{{action}}</option>
+      </select></td>
+      <td><input [(ngModel)]="item.inputValue"/></td>
+    </tr>
+  </tbody>
+</table>
+
+
+<button (click)="scriptExecute($event)">execute</button>
