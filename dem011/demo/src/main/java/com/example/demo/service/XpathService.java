@@ -290,43 +290,7 @@ public class XpathService {
 					}
 				}
 
-			} else if (xpath.getAction().equals("windowhandle")) {
-				String parentWindowHandle = driver.getWindowHandle();
-				Set<String> windowHandles = driver.getWindowHandles();
-
-				for (String windowHandle : windowHandles) {
-					if (!windowHandle.equals(parentWindowHandle)) {
-						driver.switchTo().window(windowHandle);
-						CompletableFuture<Object> updateDo = this.updateDOM(js);
-						try {
-							Object update = updateDo.get();
-						} catch (InterruptedException | ExecutionException e) {
-							// TODO Auto-generated catch block
-							e.printStackTrace();
-						}
-						break;
-					}
-				}
-
-			} else if (xpath.getAction().equals("windowhandle")) {
-				String parentWindowHandle = driver.getWindowHandle();
-				Set<String> windowHandles = driver.getWindowHandles();
-
-				for (String windowHandle : windowHandles) {
-					if (!windowHandle.equals(parentWindowHandle)) {
-						driver.switchTo().window(windowHandle);
-						CompletableFuture<Object> updateDo = this.updateDOM(js);
-						try {
-							Object update = updateDo.get();
-						} catch (InterruptedException | ExecutionException e) {
-							// TODO Auto-generated catch block
-							e.printStackTrace();
-						}
-						break;
-					}
-				}
-
-			} else if (xpath.getAction().equals("switchToparent")) {
+			}  else if (xpath.getAction().equals("switchToparent")) {
 				String parentWindowHandle = driver.getWindowHandle();
 
 				// Get the window handles of all open windows
