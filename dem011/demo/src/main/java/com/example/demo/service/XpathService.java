@@ -2,9 +2,8 @@ package com.example.demo.service;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
@@ -13,16 +12,23 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import org.openqa.selenium.By;
+import org.openqa.selenium.JavascriptExecutor;
+import org.openqa.selenium.Keys;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.remote.CapabilityType;
+import org.openqa.selenium.remote.DesiredCapabilities;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import com.example.demo.dto.Response;
 import com.example.demo.dto.Xpaths;
-import org.openqa.selenium.JavascriptExecutor;
-import org.openqa.selenium.Keys;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.awt.*;
+import java.awt.datatransfer.Clipboard;
+import java.awt.datatransfer.StringSelection;
 
 @Service
 public class XpathService {
@@ -33,6 +39,7 @@ public class XpathService {
 	private String currentUrl;
 	private Xpaths clickMoreXpath;
 	private WebElement previousEle;
+	private String copyNumber;
 
 	public XpathService() {
 	}
@@ -42,7 +49,9 @@ public class XpathService {
 		// setting Driver
 		String driverPath = "C:\\Users\\NagasaiKoneti\\Downloads\\chromedriver_win32\\chromedriver.exe";
 		System.setProperty("webdriver.chrome.driver", driverPath);
-		this.driver = new ChromeDriver();
+		DesiredCapabilities handlSSLErr = DesiredCapabilities.chrome();
+		handlSSLErr.setCapability(CapabilityType.ACCEPT_SSL_CERTS, true);
+		this.driver = new ChromeDriver(handlSSLErr);
 		String Url = response.getUrl();
 		driver.get(Url);
 		this.pageSource = driver.getPageSource();
@@ -54,6 +63,7 @@ public class XpathService {
 		// Response Actions
 		List<Xpaths> xpaths = response.getXpaths();
 		xpaths.forEach(xpath -> {
+
 			if (xpath.getAction().equals("navigator")) {
 				try {
 					clickOnNavbar(xpath);
@@ -84,6 +94,15 @@ public class XpathService {
 				// previousEle.sendKeys(Keys.TAB);
 				try {
 					Thread.sleep(3000);
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			} else if (xpath.getAction().equals("waitTillLoad")) {
+				// previousEle.sendKeys(Keys.TAB);
+				int i = Integer.parseInt(xpath.getInputValue());
+				try {
+					Thread.sleep(i * 1000);
 				} catch (InterruptedException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
@@ -188,16 +207,21 @@ public class XpathService {
 								// TODO Auto-generated catch block
 								e.printStackTrace();
 							}
-							WebElement SearchOk = driver.findElement(By.xpath("//button[text()='OK']"));
-							synchronized (SearchOk) {
-								while (SearchOk == null) {
-									SearchOk.wait();
+
+							System.out.println(copyInputString);
+							String clickOnOk = clickOnOKMethod(
+									copyInputString.replace("cntnrSpan", "lovDialogId::ok"));
+							WebElement clickOnOKEle = driver.findElement(By.cssSelector(clickOnOk));
+							synchronized (clickOnOKEle) {
+								while (clickOnOKEle == null) {
+									clickOnOKEle.wait();
 								}
-								System.out.println("Found element1: " + SearchOk.getText());
+								System.out.println("Found element1: " + clickOnOKEle.getText());
 
 							}
+
 							try {
-								SearchOk.click();
+								clickOnOKEle.click();
 								Thread.sleep(5000);
 								CompletableFuture<Object> updateDom = this.updateDOM(js);
 								Object update = updateDom.get();
@@ -212,6 +236,60 @@ public class XpathService {
 
 				} catch (Exception e) {
 
+				}
+
+			} else if (xpath.getAction().equals("copyNumber")) {
+				String[] copyNumberInputParameter = xpath.getInputParameter().split(">");
+				if (copyNumberInputParameter[0].equals("Confirmation")) {
+
+					// WebElement webElement =
+					// driver.findElement(By.xpath("//td[normalize-space(text())=\"" +
+					// copyNumberInputParameter[0] + "\"]/following::label[contains(text(),\"" +
+					// copyNumberInputParameter[1] + "\")"));
+
+					// Find the element containing the "Confirmation" text
+					Element confirmationElement = doc.selectFirst(":containsOwn(Confirmation)");
+
+					// Find the parent div element of the "Confirmation" text
+					Element confirmationParent = confirmationElement.parent();
+					while (confirmationParent != null
+							&& confirmationParent.select(":contains(Process)").isEmpty()) {
+						confirmationParent = confirmationParent.parent();
+					}
+					// Find the label element containing the "Process" text among its siblings
+					Element labelElement = confirmationParent.selectFirst("label:contains(Process)");
+
+					System.out.println("Label Text: " + labelElement);
+
+					Pattern pattern = Pattern.compile("\\d+");
+
+					// Create a matcher with the input text
+					Matcher matcher = pattern.matcher(labelElement.text());
+
+					// Find and print all matching numbers
+					while (matcher.find()) {
+						String number = matcher.group();
+						System.out.println(number);
+						copyNumber = number;
+					}
+				}
+
+			} else if (xpath.getAction().equals("windowhandle")) {
+				String parentWindowHandle = driver.getWindowHandle();
+				Set<String> windowHandles = driver.getWindowHandles();
+
+				for (String windowHandle : windowHandles) {
+					if (!windowHandle.equals(parentWindowHandle)) {
+						driver.switchTo().window(windowHandle);
+						CompletableFuture<Object> updateDo = this.updateDOM(js);
+						try {
+							Object update = updateDo.get();
+						} catch (InterruptedException | ExecutionException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
+						break;
+					}
 				}
 
 			} else {
@@ -230,10 +308,42 @@ public class XpathService {
 					}
 					if (xpath.getAction().equals("sendKeys") || xpath.getAction().equals("textArea")
 							|| xpath.getAction().equals("selectvaluesTable") || xpath.getAction().equals("login")
-							|| xpath.getAction().equals("tableSendKeys")) {
+							|| xpath.getAction().equals("tableSendKeys")
+							|| xpath.getAction().equals("Select Dropdown Values")) {
 						System.out.println(element.getText());
+						if (xpath.getAction().equals("Select Dropdown Values")) {
+							try {
+								System.out.println(element);
+								// ((JavascriptExecutor) driver).executeScript("arguments[0].value =
+								// arguments[1];", element, xpath.getInputValue());
+								// element.click();
+								// Select select = new Select(element);
+								// select.selectByVisibleText(xpath.getInputValue());
+
+								((JavascriptExecutor) driver).executeScript("arguments[0].selectedIndex = -1;",
+										element);
+								List<WebElement> options = element.findElements(By.tagName("option"));
+								for (WebElement option : options) {
+									if (option.getText().equals(xpath.getInputValue())) {
+										option.click();
+										Thread.sleep(3000);
+										break;
+									}
+								}
+							} catch (Exception e) {
+								e.printStackTrace();
+							}
+						} else {
+							element.clear();
+							element.sendKeys(xpath.getInputValue());
+						}
+
+					} else if (xpath.getAction().equals("clearText")) {
+						System.out.println(element);
 						element.clear();
-						element.sendKeys(xpath.getInputValue());
+					} else if (xpath.getAction().equals("paste")) {
+						System.out.println(element);
+						element.sendKeys(copyNumber);
 					} else {
 						element.click();
 						Thread.sleep(5000);
@@ -247,6 +357,25 @@ public class XpathService {
 			}
 		});
 		// driver.quit();
+	}
+
+	private String clickOnOKMethod(String replace) {
+		JavascriptExecutor js = (JavascriptExecutor) driver;
+		CompletableFuture<Object> updateDo = this.updateDOM(js);
+		try {
+			Object update = updateDo.get();
+		} catch (InterruptedException | ExecutionException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		if (doc.select(("*[id=" + replace + "]")).size() != 0) {
+			Element parentele = doc.select("*[id=" + replace + "]").first();
+			return parentele.cssSelector();
+
+		} else {
+			return "";
+		}
 	}
 
 	private String clickonDropDownText(String replace, String input) {
@@ -442,13 +571,19 @@ public class XpathService {
 				case "Click Expand or Collapse":
 					elements = doc.select("a, button, input[type=button],input[type=submit]");
 					break;
-				case "Dropdown Values":
+				case "Select Dropdown Values":
 					elements = doc.select("select");
 					break;
 				case "clickImage":
 					elements = doc.select("img, svg");
 					break;
 				case "sendKeys":
+					elements = doc.select("input");
+					break;
+				case "clearText":
+					elements = doc.select("input");
+					break;
+				case "paste":
 					elements = doc.select("input");
 					break;
 				case "login":
@@ -502,7 +637,8 @@ public class XpathService {
 				} else {
 					// Elements headerElements = null;
 					// List<String> storingIds = new ArrayList<String>();
-					Element headerEle = doc.select(":matchesOwn(^" + splitInputParameter[0] + "$):not(label,button,a)").last();
+					Element headerEle = doc.select(":matchesOwn(^" + splitInputParameter[0] + "$):not(label,button,a)")
+							.last();
 					Element parent = headerEle.parent();
 					while (parent != null
 							&& parent.select("*:matchesOwn(^" + splitInputParameter[1] + "$)").isEmpty()) {
@@ -547,7 +683,8 @@ public class XpathService {
 				return ele.cssSelector();
 
 			} else if (xpath.getAction().equals("textArea") || xpath.getAction().equals("selectvaluesTable")
-					|| xpath.getAction().equals("sendKeys")) {
+					|| xpath.getAction().equals("sendKeys") || xpath.getAction().equals("Select Dropdown Values") ||
+					xpath.getAction().equals("clearText") || xpath.getAction().equals("paste")) {
 				CompletableFuture<Object> updateDo = this.updateDOM(js);
 				try {
 					Object update = updateDo.get();
@@ -566,8 +703,17 @@ public class XpathService {
 				}
 				String forAtrr = parent.select("label:matchesOwn(^" + splitInputParameter[1] + "$)").attr("for");
 				if (xpath.getAction().equals("selectvaluesTable") || xpath.getAction().equals("Dropdown Values")
-						|| xpath.getAction().equals("sendKeys")) {
+						|| xpath.getAction().equals("sendKeys") || xpath.getAction().equals("paste")) {
 					Element textArea = parent.select(("input[id=" + forAtrr + "]")).first();
+					if (xpath.getAction().equals("paste")) {
+						textArea = parent
+								.select(("input[id="
+										+ "_FOpt1:_FOr1:0:_FONSr2:0:_FOTsr1:0:pt1:srRssdfl:value10::content" + "]"))
+								.first();
+					}
+					return textArea.cssSelector();
+				} else if (xpath.getAction().equals("Select Dropdown Values")) {
+					Element textArea = parent.select(("select[id=" + forAtrr + "]")).first();
 					return textArea.cssSelector();
 				} else {
 
@@ -672,8 +818,8 @@ public class XpathService {
 				while (parent != null && parent.select(":matchesOwn(^" + parentEle + "$)").isEmpty()) {
 					parent = parent.parent();
 				}
-				if(parent != null){
-					
+				if (parent != null) {
+
 				}
 			});
 		}
