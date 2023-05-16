@@ -98,14 +98,14 @@ public class XpathService {
 				}
 			} else if (xpath.getAction().equals("waitTillLoad")) {
 				// previousEle.sendKeys(Keys.TAB);
-				int i=Integer.parseInt(xpath.getInputValue());  
+				int i = Integer.parseInt(xpath.getInputValue());
 				try {
-					Thread.sleep(i*1000);
+					Thread.sleep(i * 1000);
 				} catch (InterruptedException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
-			}else if (xpath.getAction().equals("Dropdown Values")) {
+			} else if (xpath.getAction().equals("Dropdown Values")) {
 				try {
 					List<String> dropDown = dropDownXpath(xpath, doc);
 					String cssSelector = dropDown.get(0);
@@ -288,6 +288,85 @@ public class XpathService {
 						}
 						break;
 					}
+				}
+
+			} else if (xpath.getAction().equals("windowhandle")) {
+				String parentWindowHandle = driver.getWindowHandle();
+				Set<String> windowHandles = driver.getWindowHandles();
+
+				for (String windowHandle : windowHandles) {
+					if (!windowHandle.equals(parentWindowHandle)) {
+						driver.switchTo().window(windowHandle);
+						CompletableFuture<Object> updateDo = this.updateDOM(js);
+						try {
+							Object update = updateDo.get();
+						} catch (InterruptedException | ExecutionException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
+						break;
+					}
+				}
+
+			} else if (xpath.getAction().equals("windowhandle")) {
+				String parentWindowHandle = driver.getWindowHandle();
+				Set<String> windowHandles = driver.getWindowHandles();
+
+				for (String windowHandle : windowHandles) {
+					if (!windowHandle.equals(parentWindowHandle)) {
+						driver.switchTo().window(windowHandle);
+						CompletableFuture<Object> updateDo = this.updateDOM(js);
+						try {
+							Object update = updateDo.get();
+						} catch (InterruptedException | ExecutionException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
+						break;
+					}
+				}
+
+			} else if (xpath.getAction().equals("switchToparent")) {
+				String parentWindowHandle = driver.getWindowHandle();
+
+				// Get the window handles of all open windows
+				Set<String> allWindowHandles = driver.getWindowHandles();
+				List<String> list = new ArrayList<>(allWindowHandles);
+				// Switch to the child window
+				for (String windowHandle : allWindowHandles) {
+					if (list.get(list.size()-2).equals(windowHandle)) {
+						driver.switchTo().window(windowHandle);
+						break;
+					}
+				}
+				CompletableFuture<Object> updateDo = this.updateDOM(js);
+				try {
+					Object update = updateDo.get();
+				} catch (InterruptedException | ExecutionException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+
+			} 
+			else if (xpath.getAction().equals("switchToMainparent")) {
+				String parentWindowHandle = driver.getWindowHandle();
+
+				// Get the window handles of all open windows
+				Set<String> allWindowHandles = driver.getWindowHandles();
+				List<String> list = new ArrayList<>(allWindowHandles);
+				// Switch to the child window
+				for (String windowHandle : allWindowHandles) {
+					if (list.get(0).equals(windowHandle)) {
+						driver.switchTo().window(windowHandle);
+						break;
+					}
+				}
+				CompletableFuture<Object> updateDo = this.updateDOM(js);
+				try {
+					Object update = updateDo.get();
+				} catch (InterruptedException | ExecutionException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
 				}
 
 			} else {
