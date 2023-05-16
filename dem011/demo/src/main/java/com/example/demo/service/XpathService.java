@@ -49,9 +49,7 @@ public class XpathService {
 		// setting Driver
 		String driverPath = "C:\\Users\\NagasaiKoneti\\Downloads\\chromedriver_win32\\chromedriver.exe";
 		System.setProperty("webdriver.chrome.driver", driverPath);
-		DesiredCapabilities handlSSLErr = DesiredCapabilities.chrome();
-		handlSSLErr.setCapability(CapabilityType.ACCEPT_SSL_CERTS, true);
-		this.driver = new ChromeDriver(handlSSLErr);
+		this.driver = new ChromeDriver();
 		String Url = response.getUrl();
 		driver.get(Url);
 		this.pageSource = driver.getPageSource();
@@ -100,14 +98,14 @@ public class XpathService {
 				}
 			} else if (xpath.getAction().equals("waitTillLoad")) {
 				// previousEle.sendKeys(Keys.TAB);
-				int i = Integer.parseInt(xpath.getInputValue());
+				int i=Integer.parseInt(xpath.getInputValue());  
 				try {
-					Thread.sleep(i * 1000);
+					Thread.sleep(i*1000);
 				} catch (InterruptedException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
-			} else if (xpath.getAction().equals("Dropdown Values")) {
+			}else if (xpath.getAction().equals("Dropdown Values")) {
 				try {
 					List<String> dropDown = dropDownXpath(xpath, doc);
 					String cssSelector = dropDown.get(0);
