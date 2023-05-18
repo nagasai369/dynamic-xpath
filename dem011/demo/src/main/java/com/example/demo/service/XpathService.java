@@ -371,6 +371,15 @@ public class XpathService {
 					e.printStackTrace();
 				}
 
+			} else if (xpath.getAction().equals("switchToDefaultFrame")) {
+				driver.switchTo().defaultContent();
+				CompletableFuture<Object> updateDo = this.updateDOM(js);
+				try {
+					Object update = updateDo.get();
+				} catch (InterruptedException | ExecutionException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
 			} else {
 				try {
 					String cssSelector = getXpath(xpath, doc, false);
@@ -739,12 +748,14 @@ public class XpathService {
 				String[] splitInputParameter = xpath.getInputParameter().split(">");
 				if (splitInputParameter.length == 1) {
 					if (element.tagName() == "svg") {
-						if (element.select("title").text().equals(xpath.getInputParameter()) || element.select("title").text().replaceAll(String.valueOf((char) 160)," ").equals(xpath.getInputParameter())) {
+						if (element.select("title").text().equals(xpath.getInputParameter()) || element.select("title")
+								.text().replaceAll(String.valueOf((char) 160), " ").equals(xpath.getInputParameter())) {
 							return element.cssSelector();
 						}
 
 					} else {
-						if (element.attr("title").equals(xpath.getInputParameter()) || element.attr("title").replaceAll(String.valueOf((char) 160)," ").equals(xpath.getInputParameter())) {
+						if (element.attr("title").equals(xpath.getInputParameter()) || element.attr("title")
+								.replaceAll(String.valueOf((char) 160), " ").equals(xpath.getInputParameter())) {
 							flag = true;
 							return element.cssSelector();
 						}
