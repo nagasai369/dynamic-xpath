@@ -131,7 +131,7 @@ public class XpathService {
 					}
 					try {
 						element.click();
-						Thread.sleep(3000);
+						Thread.sleep(5000);
 						CompletableFuture<Object> updateDom = this.updateDOM(js);
 						Object update = updateDom.get();
 					} catch (InterruptedException | ExecutionException e) {
@@ -143,7 +143,7 @@ public class XpathService {
 					String copyInputString = inputString;
 					String OutPut = inputString.replace("cntnrSpan", "dropdownPopup::popupsearch");
 					String clickSearch = clickOnSearch(OutPut);
-					// Thread.sleep(2000);
+					Thread.sleep(5000);
 					if (clickSearch != "") {
 						WebElement searchEle = driver.findElement(By.cssSelector(clickSearch));
 						synchronized (searchEle) {
@@ -155,7 +155,7 @@ public class XpathService {
 						}
 						try {
 							searchEle.click();
-							Thread.sleep(2000);
+							Thread.sleep(5000);
 							CompletableFuture<Object> updateDom = this.updateDOM(js);
 							Object update = updateDom.get();
 						} catch (InterruptedException | ExecutionException e) {
@@ -430,6 +430,7 @@ public class XpathService {
 						System.out.println(element);
 						element.clear();
 					} else if (xpath.getAction().equals("paste")) {
+						Thread.sleep(5000);
 						System.out.println(element);
 						element.sendKeys(copyNumber);
 					} else {
