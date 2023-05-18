@@ -105,6 +105,13 @@ public class XpathService {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
+				CompletableFuture<Object> updateDo = this.updateDOM(js);
+				try {
+					Object update = updateDo.get();
+				} catch (InterruptedException | ExecutionException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
 			} else if (xpath.getAction().equals("Dropdown Values")) {
 				try {
 					List<String> dropDown = dropDownXpath(xpath, doc);
@@ -167,7 +174,11 @@ public class XpathService {
 
 							}
 							searchByInputEle.clear();
-							searchByInputEle.sendKeys(xpath.getInputValue());
+							// searchByInputEle.sendKeys(xpath.getInputValue());
+							JavascriptExecutor jsExecutor = (JavascriptExecutor) driver;
+							// Perform sendKeys using JavaScript executor
+							String script = "arguments[0].value = arguments[1]";
+							jsExecutor.executeScript(script, searchByInputEle, xpath.getInputValue());
 
 							WebElement SearchButton = driver.findElement(By.xpath("//button[text()='Search']"));
 							synchronized (SearchButton) {
@@ -290,7 +301,7 @@ public class XpathService {
 					}
 				}
 
-			}  else if (xpath.getAction().equals("switchToparent")) {
+			} else if (xpath.getAction().equals("switchToparent")) {
 				String parentWindowHandle = driver.getWindowHandle();
 
 				// Get the window handles of all open windows
@@ -298,7 +309,7 @@ public class XpathService {
 				List<String> list = new ArrayList<>(allWindowHandles);
 				// Switch to the child window
 				for (String windowHandle : allWindowHandles) {
-					if (list.get(list.size()-2).equals(windowHandle)) {
+					if (list.get(list.size() - 2).equals(windowHandle)) {
 						driver.switchTo().window(windowHandle);
 						break;
 					}
@@ -311,8 +322,7 @@ public class XpathService {
 					e.printStackTrace();
 				}
 
-			} 
-			else if (xpath.getAction().equals("switchToMainparent")) {
+			} else if (xpath.getAction().equals("switchToMainparent")) {
 				String parentWindowHandle = driver.getWindowHandle();
 
 				// Get the window handles of all open windows
@@ -325,6 +335,34 @@ public class XpathService {
 						break;
 					}
 				}
+				CompletableFuture<Object> updateDo = this.updateDOM(js);
+				try {
+					Object update = updateDo.get();
+				} catch (InterruptedException | ExecutionException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+
+			} else if (xpath.getAction().equals("switchToFrame")) {
+				String cssSelector = getXpath(xpath, doc, false);
+				if (cssSelector == "") {
+					cssSelector = getXpath(xpath, doc, true);
+				}
+				WebElement frameElement = driver.findElement(By.cssSelector(cssSelector));
+				synchronized (frameElement) {
+					while (frameElement == null) {
+						try {
+							frameElement.wait();
+						} catch (InterruptedException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
+					}
+					System.out.println("Found element1: " + frameElement.getText());
+
+				}
+
+				driver.switchTo().frame(frameElement);
 				CompletableFuture<Object> updateDo = this.updateDOM(js);
 				try {
 					Object update = updateDo.get();
@@ -615,6 +653,9 @@ public class XpathService {
 				case "Select Dropdown Values":
 					elements = doc.select("select");
 					break;
+				case "switchToFrame":
+					elements = doc.select("iframe");
+					break;
 				case "clickImage":
 					elements = doc.select("img, svg");
 					break;
@@ -632,6 +673,9 @@ public class XpathService {
 					break;
 				case "textArea":
 					elements = doc.select("textarea");
+					break;
+				case "tableRowSelect":
+					elements = doc.select("table");
 					break;
 				default:
 					elements = doc.select("*");
@@ -691,17 +735,34 @@ public class XpathService {
 				}
 
 			} else if (xpath.getAction().equals("clickImage")) {
-				if (element.tagName() == "svg") {
-					if (element.select("title").text().equals(xpath.getInputParameter())) {
-						return element.cssSelector();
-					}
 
-				} else {
-					if (element.attr("title").equals(xpath.getInputParameter())) {
-						flag = true;
-						return element.cssSelector();
+				String[] splitInputParameter = xpath.getInputParameter().split(">");
+				if (splitInputParameter.length == 1) {
+					if (element.tagName() == "svg") {
+						if (element.select("title").text().equals(xpath.getInputParameter()) || element.select("title").text().replaceAll(String.valueOf((char) 160)," ").equals(xpath.getInputParameter())) {
+							return element.cssSelector();
+						}
+
+					} else {
+						if (element.attr("title").equals(xpath.getInputParameter()) || element.attr("title").replaceAll(String.valueOf((char) 160)," ").equals(xpath.getInputParameter())) {
+							flag = true;
+							return element.cssSelector();
+						}
 					}
+				} else {
+
+					Element headerEle = doc.select(":matchesOwn(^" + splitInputParameter[0] + "$)")
+							.last();
+					Element parent = headerEle.parent();
+					while (parent != null
+							&& parent.select(String.format("img[title=%s]", splitInputParameter[1])).isEmpty()) {
+						parent = parent.parent();
+					}
+					Element clickbutton = parent.select(String.format("img[title=%s]", splitInputParameter[1])).first();
+					return clickbutton.cssSelector();
+
 				}
+
 			} else if (xpath.getAction().equals("tableSendKeys")) {
 				CompletableFuture<Object> updateDo = this.updateDOM(js);
 				try {
@@ -790,6 +851,21 @@ public class XpathService {
 					return ele.cssSelector();
 				}
 
+			} else if (xpath.getAction().equals("tableRowSelect")) {
+
+				if (element.attr("summary").equals(xpath.getInputParameter())) {
+					return element.cssSelector();
+				}
+			} else if (xpath.getAction().equals("switchToFrame")) {
+				if (element.attr("id").equals(xpath.getInputParameter())) {
+					return element.cssSelector();
+
+				} else if (element.attr("title").equals(xpath.getInputParameter())) {
+
+				}
+				// else if(){
+
+				// }
 			}
 		}
 
