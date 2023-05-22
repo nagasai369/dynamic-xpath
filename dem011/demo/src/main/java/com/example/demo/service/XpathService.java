@@ -345,9 +345,6 @@ public class XpathService {
 
 			} else if (xpath.getAction().equals("switchToFrame")) {
 				String cssSelector = getXpath(xpath, doc, false);
-				if (cssSelector == "") {
-					cssSelector = getXpath(xpath, doc, true);
-				}
 				WebElement frameElement = driver.findElement(By.cssSelector(cssSelector));
 				synchronized (frameElement) {
 					while (frameElement == null) {
@@ -380,6 +377,50 @@ public class XpathService {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
+			} else if (xpath.getAction().equals("Click Expand or Collapse")) {
+				CompletableFuture<Object> updateDo = this.updateDOM(js);
+				try {
+					Object update = updateDo.get();
+				} catch (InterruptedException | ExecutionException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+				Elements elements = doc.select("a, button, input[type=button],input[type=submit]");
+				String[] splitInputParameter = xpath.getInputParameter().split(">");
+				Elements headerElements = null;
+				// List<String> storingIds = new ArrayList<String>();
+				Element headerEle = doc.select(":matchesOwn(^" + splitInputParameter[0] + "$):not(label)").last();
+				Element parent = headerEle.parent();
+				while (parent != null
+						&& parent.select(":matchesOwn(^" + splitInputParameter[1] + "$)").isEmpty()) {
+					parent = parent.parent();
+				}
+				Element ele = parent.select(":matchesOwn(^" + splitInputParameter[1] + "$)").first().parent().parent()
+						.parent().select("a").first();
+				System.out.println(ele.cssSelector());
+				for (Element element : elements) {
+					if (ele == element) {
+						String cssProp = ele.cssSelector();
+						WebElement el = driver.findElement(By.cssSelector(cssProp));
+						el.click();
+						try {
+							Thread.sleep(5000);
+						} catch (InterruptedException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
+						CompletableFuture<Object> updateDom = this.updateDOM(js);
+						try {
+							Object update = updateDom.get();
+						} catch (InterruptedException | ExecutionException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
+
+					}
+
+				}
+
 			} else {
 				try {
 					String cssSelector = getXpath(xpath, doc, false);
@@ -750,13 +791,19 @@ public class XpathService {
 				if (splitInputParameter.length == 1) {
 					if (element.tagName() == "svg") {
 						if (element.select("title").text().equals(xpath.getInputParameter()) || element.select("title")
-								.text().replaceAll(String.valueOf((char) 160), " ").equals(xpath.getInputParameter())) {
+								.text().replaceAll(String.valueOf((char) 160), " ").equals(xpath.getInputParameter()) ||
+								element.parent().attr("title").equals(xpath.getInputParameter())
+								|| element.parent().attr("title").replaceAll(String.valueOf((char) 160), " ")
+										.equals(xpath.getInputParameter())) {
 							return element.cssSelector();
 						}
 
 					} else {
 						if (element.attr("title").equals(xpath.getInputParameter()) || element.attr("title")
-								.replaceAll(String.valueOf((char) 160), " ").equals(xpath.getInputParameter())) {
+								.replaceAll(String.valueOf((char) 160), " ").equals(xpath.getInputParameter())
+								|| element.parent().attr("title").equals(xpath.getInputParameter())
+								|| element.parent().attr("title").replaceAll(String.valueOf((char) 160), " ")
+										.equals(xpath.getInputParameter())) {
 							flag = true;
 							return element.cssSelector();
 						}
@@ -1001,8 +1048,44 @@ public class XpathService {
 	}
 
 	// Method for click button
-	private void ClickButton(Xpaths xpath) {
+	private void clickButton(Xpaths xpath) {
+		Elements elements = GettingAllElements(xpath.getAction());
+		String[] splitInputParameter = xpath.getInputParameter().split(">");
+		String cssSelectorEle = "";
+		if (splitInputParameter.length == 1) {
+			for (Element element : elements) {
+				if ((element.text().trim().equalsIgnoreCase(xpath.getInputParameter())
+						|| element.attr("alt").trim().equals(xpath.getInputParameter()))) {
+					cssSelectorEle = element.cssSelector();
 
+				}
+			}
+		} else {
+			Element headerEle = doc.select(":matchesOwn(^" + splitInputParameter[0] + "$):not(label,button,a)")
+					.last();
+			Element parent = headerEle.parent();
+			while (parent != null
+					&& parent.select("*:matchesOwn(^" + splitInputParameter[1] + "$)").isEmpty()) {
+				parent = parent.parent();
+			}
+			Element clickbutton = parent.select("*:matchesOwn(^" + splitInputParameter[1] + "$)").first();
+			cssSelectorEle = clickbutton.cssSelector();
+
+		}
+		if (cssSelectorEle != "") {
+
+			WebElement buttonElement = driver.findElement(By.cssSelector(cssSelectorEle));
+			synchronized (buttonElement) {
+				while (buttonElement == null) {
+					try {
+						buttonElement.wait();
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
+				}
+			}
+			buttonElement.click();
+		}
 	}
 
 	// Method for clickCheckBox
@@ -1011,34 +1094,129 @@ public class XpathService {
 	}
 
 	// Method for SwitchToParentWindow
-	private void SwitchToParentWindow(Xpaths xpath) {
+	private void SwitchToParentWindow() {
+		String parentWindowHandle = driver.getWindowHandle();
+
+		// Get the window handles of all open windows
+		Set<String> allWindowHandles = driver.getWindowHandles();
+		List<String> list = new ArrayList<>(allWindowHandles);
+		// Switch to the child window
+		for (String windowHandle : allWindowHandles) {
+			if (list.get(list.size() - 2).equals(windowHandle)) {
+				driver.switchTo().window(windowHandle);
+				break;
+			}
+		}
 
 	}
 
 	// Method for SwitchToDefaultFrame
-	private void SwitchToDefaultFrame(Xpaths xpath) {
-
+	private void SwitchToDefaultFrame() {
+		driver.switchTo().defaultContent();
 	}
 
 	// Method for SwitchToFrame
 	private void SwitchToFrame(Xpaths xpath) {
+		// Elements elements = doc.select("iframe");
+		Elements elements = GettingAllElements(xpath.getAction());
+		String CssSelector = "";
+		for (Element element : elements) {
+			if (element.attr("id").equals(xpath.getInputParameter())) {
+				CssSelector = element.cssSelector();
+				break;
+
+			} else if (element.attr("title").equals(xpath.getInputParameter())) {
+
+			}
+		}
+		WebElement frameElement = driver.findElement(By.cssSelector(CssSelector));
+		synchronized (frameElement) {
+			while (frameElement == null) {
+				try {
+					frameElement.wait();
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+			}
+		}
+
+		driver.switchTo().frame(frameElement);
 
 	}
 
 	// Method for textArea
-	private void TextArea(Xpaths xpath) {
+	private void textArea(Xpaths xpath) {
+		String[] splitInputParameter = xpath.getInputParameter().split(">");
+		Element headerEle = doc.select(":matchesOwn(^" + splitInputParameter[0] + "$):not(label)").last();
+		Element parent = headerEle.parent();
+		while (parent != null && parent.select("label:matchesOwn(^" + splitInputParameter[1] + "$)").isEmpty()) {
+			parent = parent.parent();
+		}
+		String forAtrr = parent.select("label:matchesOwn(^" + splitInputParameter[1] + "$)").attr("for");
+		Element textArea = parent.select(("textarea[id=" + forAtrr + "]")).first();
+		String CssSelector = textArea.cssSelector();
+		WebElement frameElement = driver.findElement(By.cssSelector(CssSelector));
+		synchronized (frameElement) {
+			while (frameElement == null) {
+				try {
+					frameElement.wait();
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+			}
+		}
+		frameElement.clear();
+		JavascriptExecutor jsExecutor = (JavascriptExecutor) driver;
+		String script = "arguments[0].value = arguments[1]";
+		jsExecutor.executeScript(script, frameElement, xpath.getInputValue());
 
 	}
 
 	// Method for Windowhandle
-	private void Windowhandle(Xpaths xpath) {
+	private void windowhandle(Xpaths xpath) {
+		String parentWindowHandle = driver.getWindowHandle();
+		Set<String> windowHandles = driver.getWindowHandles();
+
+		for (String windowHandle : windowHandles) {
+			if (!windowHandle.equals(parentWindowHandle)) {
+				driver.switchTo().window(windowHandle);
+				break;
+			}
+		}
 
 	}
 
 	// Method for clickExpandorcollapse
 
 	private void clickExpandorcollapse(Xpaths xpath) {
-
+		Elements elements = GettingAllElements(xpath.getAction());
+		String[] splitInputParameter = xpath.getInputParameter().split(">");
+		Element headerEle = doc.select(":matchesOwn(^" + splitInputParameter[0] + "$):not(label)").last();
+		Element parent = headerEle.parent();
+		while (parent != null
+				&& parent.select(":matchesOwn(^" + splitInputParameter[1] + "$)").isEmpty()) {
+			parent = parent.parent();
+		}
+		Element ele = parent.select(":matchesOwn(^" + splitInputParameter[1] + "$)").first().parent().parent()
+				.parent().select("a").first();
+		String cssProp = "";
+		for (Element element : elements) {
+			if (ele == element) {
+				cssProp = ele.cssSelector();
+				WebElement el = driver.findElement(By.cssSelector(cssProp));
+				el.click();
+			}
+		}
+		if (cssProp.equals("")) {
+			elements = doc.select("*");
+			for (Element element : elements) {
+				if (ele == element) {
+					cssProp = ele.cssSelector();
+					WebElement el = driver.findElement(By.cssSelector(cssProp));
+					el.click();
+				}
+			}
+		}
 	}
 
 	private Elements GettingAllElements(String actionElements) {
