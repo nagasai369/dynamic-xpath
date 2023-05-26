@@ -975,10 +975,7 @@ public class XpathService {
 				if (selElement == null) {
 					continue;
 				} else {
-					selElement.clear();
-					JavascriptExecutor jsExecutor = (JavascriptExecutor) driver;
-					String script = "arguments[0].value = arguments[1]";
-					jsExecutor.executeScript(script, selElement, xpath.getInputValue());
+					selElement.click();
 					break;
 				}
 			}
@@ -1062,6 +1059,8 @@ public class XpathService {
 								else {
 									searchButtoneleSelinium.click();
 									driver.findElement(By.xpath("//td/following::span[text()='"+inputValue+"']")).click();
+									String okButtonEleId = searchButtoneleSelinium.getAttribute("id");
+									return driver.findElement(By.id(okButtonEleId));
 								}
 							}
 						}
