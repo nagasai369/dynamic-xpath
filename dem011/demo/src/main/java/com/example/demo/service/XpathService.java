@@ -117,26 +117,19 @@ public class XpathService {
 			} else if (xpath.getAction().equals("copyNumber")) {
 				String[] copyNumberInputParameter = xpath.getInputParameter().split(">");
 				if (copyNumberInputParameter[0].equals("Confirmation")) {
-
-					// WebElement webElement =
-					// driver.findElement(By.xpath("//td[normalize-space(text())=\"" +
-					// copyNumberInputParameter[0] + "\"]/following::label[contains(text(),\"" +
-					// copyNumberInputParameter[1] + "\")"));
-
-					// Find the element containing the "Confirmation" text
-					Element confirmationElement = doc.selectFirst(":containsOwn(Confirmation)");
+					Element confirmationElement = doc
+							.selectFirst(":containsOwn('" + copyNumberInputParameter[0] + "')");
 
 					// Find the parent div element of the "Confirmation" text
 					Element confirmationParent = confirmationElement.parent();
 					while (confirmationParent != null
-							&& confirmationParent.select(":contains(Process)").isEmpty()) {
+							&& confirmationParent.select(":contains('" + copyNumberInputParameter[1] + "')")
+									.isEmpty()) {
 						confirmationParent = confirmationParent.parent();
 					}
 					// Find the label element containing the "Process" text among its siblings
-					Element labelElement = confirmationParent.selectFirst("label:contains(Process)");
-
-					System.out.println("Label Text: " + labelElement);
-
+					Element labelElement = confirmationParent
+							.selectFirst("label:contains('" + copyNumberInputParameter[1] + "')");
 					Pattern pattern = Pattern.compile("\\d+");
 
 					// Create a matcher with the input text
@@ -250,6 +243,20 @@ public class XpathService {
 				login(xpath);
 			} else if (xpath.getAction().equals("sendKeys")) {
 				sendKeys(xpath);
+			} else if (xpath.getAction().equals("textArea")) {
+				textArea(xpath);
+			} else if (xpath.getAction().equals("clickButton")) {
+				clickButton(xpath);
+			} else if (xpath.getAction().equals("clickLink")) {
+				clickLink(xpath);
+			} else if (xpath.getAction().equals("clickImage")) {
+				clickImage(xpath);
+			} else if (xpath.getAction().equals("paste")) {
+				paste(xpath);
+			} else if (xpath.getAction().equals("clearText")) {
+				clearText(xpath);
+			} else if (xpath.getAction().equals("Select Dropdown Values")) {
+				selectDropdownValues(xpath);
 			} else {
 				try {
 					String cssSelector = getXpath(xpath, doc, false);
@@ -834,11 +841,6 @@ public class XpathService {
 
 	}
 
-	// Method for DropdownValues
-	private void DropdownValues(Xpaths xpath) {
-
-	}
-
 	// Method for logout
 	private void Logout(Xpaths xpath) {
 
@@ -877,19 +879,117 @@ public class XpathService {
 
 	}
 
-	// Method for sendKeys
-	private void SendKeys(Xpaths xpath) {
+	// Method for Table Dropdownvalues
+	private void TableDropdownValues(Xpaths xpath) {
 
 	}
 
-	// Method for Table Dropdownvalues
-	private void TableDropdownValues(Xpaths xpath) {
+	// Method for paste
+	private void paste(Xpaths xpath) {
+		String[] splitInputParameter = xpath.getInputParameter().split(">");
+		Elements headerElements = null;
+		headerElements = doc.select("*:matchesOwn(^" + splitInputParameter[0] + "$)");
+		for (Element ele : headerElements) {
+			if (splitInputParameter.length == 1) {
+				WebElement selElement = driver.findElement(By.xpath(ele.cssSelector()));
+				if (!selElement.isEnabled()) {
+					continue;
+				} else {
+					selElement.clear();
+					JavascriptExecutor jsExecutor = (JavascriptExecutor) driver;
+					String script = "arguments[0].value = arguments[1]";
+					jsExecutor.executeScript(script, selElement, xpath.getInputValue());
+					break;
+				}
+			}
+			WebElement selElement = findTheElement(ele,
+					Arrays.copyOfRange(splitInputParameter, 1, splitInputParameter.length));
+			if (selElement == null) {
+				continue;
+			} else {
+				selElement.clear();
+				JavascriptExecutor jsExecutor = (JavascriptExecutor) driver;
+				String script = "arguments[0].value = arguments[1]";
+				jsExecutor.executeScript(script, selElement, xpath.getInputValue());
+				break;
+			}
+		}
 
 	}
 
 	// Method for Table sendKeys
 	private void tableSendKeys(Xpaths xpath) {
 
+	}
+
+	// Method for selectDropdownValues
+	private void selectDropdownValues(Xpaths xpath) {
+		String[] splitInputParameter = xpath.getInputParameter().split(">");
+		Elements headerElements = null;
+		headerElements = doc.select("*:matchesOwn(^" + splitInputParameter[0] + "$)");
+		for (Element ele : headerElements) {
+			if (splitInputParameter.length == 1) {
+				WebElement selElement = driver.findElement(By.xpath(ele.cssSelector()));
+				if (!selElement.isEnabled()) {
+					continue;
+				} else {
+					((JavascriptExecutor) driver).executeScript("arguments[0].selectedIndex = -1;",
+							selElement);
+					List<WebElement> options = selElement.findElements(By.tagName("option"));
+					for (WebElement option : options) {
+						if (option.getText().equals(xpath.getInputValue())) {
+							option.click();
+							break;
+						}
+					}
+					break;
+				}
+			}
+			WebElement selElement = findselectDropdownElement(ele,
+					Arrays.copyOfRange(splitInputParameter, 1, splitInputParameter.length));
+			if (selElement == null) {
+				continue;
+			} else {
+				((JavascriptExecutor) driver).executeScript("arguments[0].selectedIndex = -1;",
+						selElement);
+				List<WebElement> options = selElement.findElements(By.tagName("option"));
+				for (WebElement option : options) {
+					if (option.getText().equals(xpath.getInputValue())) {
+						option.click();
+						break;
+					}
+				}
+				break;
+			}
+		}
+
+	}
+
+	private WebElement findselectDropdownElement(Element ele, String[] copyOfRange) {
+		Element parent = ele.parent();
+		while (parent != null && parent.select(":matchesOwn(^" + copyOfRange[0] + "$)").isEmpty()) {
+			parent = parent.parent();
+		}
+		if (parent != null) {
+			Elements secondElements = parent.select(":matchesOwn(^" + copyOfRange[0] + "$)");
+			for (Element element : secondElements) {
+				if (copyOfRange.length > 1) {
+					findselectDropdownElement(element, Arrays.copyOfRange(copyOfRange, 1, copyOfRange.length));
+				} else {
+					WebElement Selelement = driver.findElement(By.cssSelector(element.cssSelector()));
+					Selelement = Selelement.findElement(By.xpath("./following::select"));
+					if (!Selelement.isEnabled()) {
+						continue;
+					} else {
+						return Selelement;
+					}
+				}
+			}
+		} else {
+			return null;
+		}
+
+		return null;
 	}
 
 	// Method for sendKeys
@@ -931,12 +1031,28 @@ public class XpathService {
 	}
 
 	// Method for Clear
-	private void Clear(Xpaths xpath) {
+	private void clearText(Xpaths xpath) {
+		String[] splitInputParameter = xpath.getInputParameter().split(">");
+		Elements headerElements = null;
+		headerElements = doc.select("*:matchesOwn(^" + splitInputParameter[0] + "$)");
+		for (Element ele : headerElements) {
+			if (splitInputParameter.length == 1) {
+				WebElement selElement = driver.findElement(By.xpath(ele.cssSelector()));
+				if (!selElement.isEnabled()) {
+					continue;
+				} else {
+					selElement.clear();
 
-	}
-
-	// Method for click Link
-	private void ClickLink(Xpaths xpath) {
+				}
+			}
+			WebElement selElement = findTheElement(ele,
+					Arrays.copyOfRange(splitInputParameter, 1, splitInputParameter.length));
+			if (selElement == null) {
+				continue;
+			} else {
+				selElement.clear();
+			}
+		}
 
 	}
 
@@ -1024,8 +1140,7 @@ public class XpathService {
 						SearchSelelement.click();
 						String searchByInput = element.attr("for")
 								.replace("content", "_afrLovInternalQueryId:value00::content");
-							
-						
+
 						WebElement searchByValue = driver.findElement(By.id(searchByInput));
 						searchByValue.clear();
 						JavascriptExecutor jsExecutor = (JavascriptExecutor) driver;
@@ -1043,22 +1158,23 @@ public class XpathService {
 							e.printStackTrace();
 						}
 						Element searchByValueJsoup = doc.select(("*[id=" + searchByInput + "]")).first();
-						parent =searchByValueJsoup.parent();
+						parent = searchByValueJsoup.parent();
 						while (parent != null && parent.select(":matchesOwn(^" + "Search" + "$)").isEmpty()) {
 							parent = parent.parent();
 						}
-						if(parent != null){
+						if (parent != null) {
 							Elements searchButtonElement = parent.select(":matchesOwn(^" + "Search" + "$)");
-							for(Element searchButtonele :searchButtonElement){
-								WebElement searchButtoneleSelinium = driver.findElement(By.cssSelector(searchButtonele.cssSelector()));
-								if(!searchButtoneleSelinium.isEnabled() || ! searchButtoneleSelinium.isDisplayed() 
+							for (Element searchButtonele : searchButtonElement) {
+								WebElement searchButtoneleSelinium = driver
+										.findElement(By.cssSelector(searchButtonele.cssSelector()));
+								if (!searchButtoneleSelinium.isEnabled() || !searchButtoneleSelinium.isDisplayed()
 								// || !searchButtoneleSelinium.isClickable()
-								){
+								) {
 									continue;
-								}
-								else {
+								} else {
 									searchButtoneleSelinium.click();
-									driver.findElement(By.xpath("//td/following::span[text()='"+inputValue+"']")).click();
+									driver.findElement(By.xpath("//td/following::span[text()='" + inputValue + "']"))
+											.click();
 									String okButtonEleId = searchButtoneleSelinium.getAttribute("id");
 									return driver.findElement(By.id(okButtonEleId));
 								}
@@ -1075,8 +1191,9 @@ public class XpathService {
 		return null;
 	}
 
-	// Method for click button
-	private void clickButton(Xpaths xpath) {
+	// method for click Link
+	private void clickLink(Xpaths xpath) {
+
 		Elements elements = GettingAllElements(xpath.getAction());
 		String[] splitInputParameter = xpath.getInputParameter().split(">");
 		String cssSelectorEle = "";
@@ -1089,15 +1206,29 @@ public class XpathService {
 				}
 			}
 		} else {
-			Element headerEle = doc.select(":matchesOwn(^" + splitInputParameter[0] + "$):not(label,button,a)")
-					.last();
-			Element parent = headerEle.parent();
-			while (parent != null
-					&& parent.select("*:matchesOwn(^" + splitInputParameter[1] + "$)").isEmpty()) {
-				parent = parent.parent();
+			// Element headerEle = doc.select(":matchesOwn(^" + splitInputParameter[0] +
+			// "$):not(label,button,a)")
+			// .last();
+			// Element parent = headerEle.parent();
+			// while (parent != null
+			// && parent.select("*:matchesOwn(^" + splitInputParameter[1] + "$)").isEmpty())
+			// {
+			// parent = parent.parent();
+			// }
+			// Element clickbutton = parent.select("*:matchesOwn(^" + splitInputParameter[1]
+			// + "$)").first();
+			// cssSelectorEle = clickbutton.cssSelector();
+			Elements headerElements = null;
+			headerElements = doc.select("*:matchesOwn(^" + splitInputParameter[0] + "$)");
+			for (Element ele : headerElements) {
+				WebElement selElement = findLinkElement(ele,
+						Arrays.copyOfRange(splitInputParameter, 1, splitInputParameter.length));
+				if (selElement == null) {
+					continue;
+				} else {
+					selElement.click();
+				}
 			}
-			Element clickbutton = parent.select("*:matchesOwn(^" + splitInputParameter[1] + "$)").first();
-			cssSelectorEle = clickbutton.cssSelector();
 
 		}
 		if (cssSelectorEle != "") {
@@ -1114,6 +1245,222 @@ public class XpathService {
 			}
 			buttonElement.click();
 		}
+	}
+
+	private WebElement findLinkElement(Element ele, String[] copyOfRange) {
+		Element parent = ele.parent();
+		while (parent != null && (parent.select(":matchesOwn(^" + copyOfRange[0] + "$)").isEmpty()
+				|| parent.select("[alt='" + copyOfRange[0] + "']").isEmpty()
+				|| parent.select("[title='" + copyOfRange[0] + "']").isEmpty())) {
+			parent = parent.parent();
+		}
+		if (parent != null) {
+			Elements secondElements = null;
+			if (parent.select(":matchesOwn(^" + copyOfRange[0] + "$)").isEmpty()) {
+				secondElements = parent.select(":matchesOwn(^" + copyOfRange[0] + "$)");
+			}
+			if (parent.select("[alt='" + copyOfRange[0] + "']").isEmpty()) {
+				secondElements = parent.select("[alt='" + copyOfRange[0] + "']");
+			}
+			if (parent.select("[title='" + copyOfRange[0] + "']").isEmpty()) {
+				secondElements = parent.select("[title='" + copyOfRange[0] + "']");
+			}
+			for (Element element : secondElements) {
+				if (copyOfRange.length > 1) {
+					findLinkElement(element, Arrays.copyOfRange(copyOfRange, 1, copyOfRange.length));
+				} else {
+					WebElement Selelement = driver.findElement(By.cssSelector(element.cssSelector()));
+					if (!Selelement.isEnabled() || !Selelement.isDisplayed()) {
+						continue;
+					} else {
+						return Selelement;
+					}
+				}
+			}
+		} else {
+			return null;
+		}
+
+		return null;
+	}
+
+	// method for click Link
+	private void clickImage(Xpaths xpath) {
+
+		Elements elements = GettingAllElements(xpath.getAction());
+		String[] splitInputParameter = xpath.getInputParameter().split(">");
+		String cssSelectorEle = "";
+		if (splitInputParameter.length == 1) {
+			for (Element element : elements) {
+				if (element.tagName() == "svg") {
+					if (element.select("title").text().equals(xpath.getInputParameter()) || element.select("title")
+							.text().replaceAll(String.valueOf((char) 160), " ").equals(xpath.getInputParameter()) ||
+							element.parent().attr("title").equals(xpath.getInputParameter())
+							|| element.parent().attr("title").replaceAll(String.valueOf((char) 160), " ")
+									.equals(xpath.getInputParameter())) {
+						cssSelectorEle = element.cssSelector();
+					}
+
+				} else {
+					if (element.attr("title").equals(xpath.getInputParameter()) || element.attr("title")
+							.replaceAll(String.valueOf((char) 160), " ").equals(xpath.getInputParameter())
+							|| element.parent().attr("title").equals(xpath.getInputParameter())
+							|| element.parent().attr("title").replaceAll(String.valueOf((char) 160), " ")
+									.equals(xpath.getInputParameter())) {
+
+						cssSelectorEle = element.cssSelector();
+					}
+				}
+			}
+		} else {
+			Elements headerElements = null;
+			headerElements = doc.select("*:matchesOwn(^" + splitInputParameter[0] + "$)");
+			for (Element ele : headerElements) {
+				WebElement selElement = findImageElement(ele,
+						Arrays.copyOfRange(splitInputParameter, 1, splitInputParameter.length));
+				if (selElement == null) {
+					continue;
+				} else {
+					selElement.click();
+				}
+			}
+
+		}
+		if (cssSelectorEle != "") {
+
+			WebElement buttonElement = driver.findElement(By.cssSelector(cssSelectorEle));
+			synchronized (buttonElement) {
+				while (buttonElement == null) {
+					try {
+						buttonElement.wait();
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
+				}
+			}
+			buttonElement.click();
+		}
+	}
+
+	private WebElement findImageElement(Element ele, String[] copyOfRange) {
+		Element parent = ele.parent();
+		while (parent != null && parent
+				.select(String.format("img[title='%s'], svg[title='%s']", copyOfRange[0], copyOfRange[0])).isEmpty()) {
+			parent = parent.parent();
+		}
+		if (parent != null) {
+			Elements secondElements = parent
+					.select(String.format("img[title='%s'], svg[title='%s']", copyOfRange[0], copyOfRange[0]));
+			for (Element element : secondElements) {
+				if (copyOfRange.length > 1) {
+					findImageElement(element, Arrays.copyOfRange(copyOfRange, 1, copyOfRange.length));
+				} else {
+					WebElement Selelement = driver.findElement(By.cssSelector(element.cssSelector()));
+					if (!Selelement.isEnabled() || !Selelement.isDisplayed()) {
+						continue;
+					} else {
+						return Selelement;
+					}
+				}
+			}
+		} else {
+			return null;
+		}
+
+		return null;
+	}
+
+	// Method for click button
+	// Method for click button
+	private void clickButton(Xpaths xpath) {
+		Elements elements = GettingAllElements(xpath.getAction());
+		String[] splitInputParameter = xpath.getInputParameter().split(">");
+		String cssSelectorEle = "";
+		if (splitInputParameter.length == 1) {
+			for (Element element : elements) {
+				if ((element.text().trim().equalsIgnoreCase(xpath.getInputParameter())
+						|| element.attr("alt").trim().equals(xpath.getInputParameter()))) {
+					cssSelectorEle = element.cssSelector();
+
+				}
+			}
+		} else {
+			// Element headerEle = doc.select(":matchesOwn(^" + splitInputParameter[0] +
+			// "$):not(label,button,a)")
+			// .last();
+			// Element parent = headerEle.parent();
+			// while (parent != null
+			// && parent.select("*:matchesOwn(^" + splitInputParameter[1] + "$)").isEmpty())
+			// {
+			// parent = parent.parent();
+			// }
+			// Element clickbutton = parent.select("*:matchesOwn(^" + splitInputParameter[1]
+			// + "$)").first();
+			// cssSelectorEle = clickbutton.cssSelector();
+			Elements headerElements = null;
+			headerElements = doc.select("*:matchesOwn(^" + splitInputParameter[0] + "$)");
+			for (Element ele : headerElements) {
+				WebElement selElement = findButtonElement(ele,
+						Arrays.copyOfRange(splitInputParameter, 1, splitInputParameter.length));
+				if (selElement == null) {
+					continue;
+				} else {
+					selElement.click();
+				}
+			}
+
+		}
+		if (cssSelectorEle != "") {
+
+			WebElement buttonElement = driver.findElement(By.cssSelector(cssSelectorEle));
+			synchronized (buttonElement) {
+				while (buttonElement == null) {
+					try {
+						buttonElement.wait();
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
+				}
+			}
+			buttonElement.click();
+		}
+	}
+
+	private WebElement findButtonElement(Element ele, String[] copyOfRange) {
+		Element parent = ele.parent();
+		while (parent != null && (parent.select(":matchesOwn(^" + copyOfRange[0] + "$)").isEmpty()
+				|| parent.select("[alt='" + copyOfRange[0] + "']").isEmpty()
+				|| parent.select("[title='" + copyOfRange[0] + "']").isEmpty())) {
+			parent = parent.parent();
+		}
+		if (parent != null) {
+			Elements secondElements = null;
+			if (parent.select(":matchesOwn(^" + copyOfRange[0] + "$)").isEmpty()) {
+				secondElements = parent.select(":matchesOwn(^" + copyOfRange[0] + "$)");
+			}
+			if (parent.select("[alt='" + copyOfRange[0] + "']").isEmpty()) {
+				secondElements = parent.select("[alt='" + copyOfRange[0] + "']");
+			}
+			if (parent.select("[title='" + copyOfRange[0] + "']").isEmpty()) {
+				secondElements = parent.select("[title='" + copyOfRange[0] + "']");
+			}
+			for (Element element : secondElements) {
+				if (copyOfRange.length > 1) {
+					findButtonElement(element, Arrays.copyOfRange(copyOfRange, 1, copyOfRange.length));
+				} else {
+					WebElement Selelement = driver.findElement(By.cssSelector(element.cssSelector()));
+					if (!Selelement.isEnabled() || !Selelement.isDisplayed()) {
+						continue;
+					} else {
+						return Selelement;
+					}
+				}
+			}
+		} else {
+			return null;
+		}
+
+		return null;
 	}
 
 	// Method for clickCheckBox
@@ -1175,29 +1522,61 @@ public class XpathService {
 	// Method for textArea
 	private void textArea(Xpaths xpath) {
 		String[] splitInputParameter = xpath.getInputParameter().split(">");
-		Element headerEle = doc.select(":matchesOwn(^" + splitInputParameter[0] + "$):not(label)").last();
-		Element parent = headerEle.parent();
-		while (parent != null && parent.select("label:matchesOwn(^" + splitInputParameter[1] + "$)").isEmpty()) {
-			parent = parent.parent();
-		}
-		String forAtrr = parent.select("label:matchesOwn(^" + splitInputParameter[1] + "$)").attr("for");
-		Element textArea = parent.select(("textarea[id=" + forAtrr + "]")).first();
-		String CssSelector = textArea.cssSelector();
-		WebElement frameElement = driver.findElement(By.cssSelector(CssSelector));
-		synchronized (frameElement) {
-			while (frameElement == null) {
-				try {
-					frameElement.wait();
-				} catch (InterruptedException e) {
-					e.printStackTrace();
+		Elements headerElements = null;
+		headerElements = doc.select("*:matchesOwn(^" + splitInputParameter[0] + "$)");
+		for (Element ele : headerElements) {
+			if (splitInputParameter.length == 1) {
+				WebElement selElement = driver.findElement(By.xpath(ele.cssSelector()));
+				if (!selElement.isEnabled()) {
+					continue;
+				} else {
+					selElement.clear();
+					JavascriptExecutor jsExecutor = (JavascriptExecutor) driver;
+					String script = "arguments[0].value = arguments[1]";
+					jsExecutor.executeScript(script, selElement, xpath.getInputValue());
+					break;
 				}
 			}
+			WebElement selElement = findTheTextAreaElement(ele,
+					Arrays.copyOfRange(splitInputParameter, 1, splitInputParameter.length));
+			if (selElement == null) {
+				continue;
+			} else {
+				selElement.clear();
+				JavascriptExecutor jsExecutor = (JavascriptExecutor) driver;
+				String script = "arguments[0].value = arguments[1]";
+				jsExecutor.executeScript(script, selElement, xpath.getInputValue());
+				break;
+			}
 		}
-		frameElement.clear();
-		JavascriptExecutor jsExecutor = (JavascriptExecutor) driver;
-		String script = "arguments[0].value = arguments[1]";
-		jsExecutor.executeScript(script, frameElement, xpath.getInputValue());
 
+	}
+
+	private WebElement findTheTextAreaElement(Element ele, String[] copyOfRange) {
+		Element parent = ele.parent();
+		while (parent != null && parent.select(":matchesOwn(^" + copyOfRange[0] + "$)").isEmpty()) {
+			parent = parent.parent();
+		}
+		if (parent != null) {
+			Elements secondElements = parent.select(":matchesOwn(^" + copyOfRange[0] + "$)");
+			for (Element element : secondElements) {
+				if (copyOfRange.length > 1) {
+					findTheTextAreaElement(element, Arrays.copyOfRange(copyOfRange, 1, copyOfRange.length));
+				} else {
+					WebElement Selelement = driver.findElement(By.cssSelector(element.cssSelector()));
+					Selelement = Selelement.findElement(By.xpath("./following::textarea"));
+					if (!Selelement.isEnabled()) {
+						continue;
+					} else {
+						return Selelement;
+					}
+				}
+			}
+		} else {
+			return null;
+		}
+
+		return null;
 	}
 
 	// Method for Windowhandle
