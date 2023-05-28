@@ -257,6 +257,8 @@ public class XpathService {
 				clearText(xpath);
 			} else if (xpath.getAction().equals("Select Dropdown Values")) {
 				selectDropdownValues(xpath);
+			} else if (xpath.getAction().equals("tableRowSelect")) {
+				tableRowSelect(xpath);
 			} else {
 				try {
 					String cssSelector = getXpath(xpath, doc, false);
@@ -1372,6 +1374,95 @@ public class XpathService {
 
 	// Method for click button
 	// Method for click button
+	private void tableRowSelect(Xpaths xpath) {
+		String[] splitInputParameter = xpath.getInputParameter().split(">");
+		String cssSelectorEle = "";
+		if (splitInputParameter.length == 1) {
+			Elements elements =  doc.select(String.format("table[summary='%s']", splitInputParameter[0]));
+			for(Element element:elements){
+				WebElement tableElement = driver.findElement(By.cssSelector(element.cssSelector()));
+				if(!tableElement.isDisplayed() ||  !tableElement.isEnabled()){
+					continue;
+				}
+				else{
+					cssSelectorEle = element.cssSelector();
+				}
+			}
+					
+
+			
+		} else {
+			// Element headerEle = doc.select(":matchesOwn(^" + splitInputParameter[0] +
+			// "$):not(label,button,a)")
+			// .last();
+			// Element parent = headerEle.parent();
+			// while (parent != null
+			// && parent.select("*:matchesOwn(^" + splitInputParameter[1] + "$)").isEmpty())
+			// {
+			// parent = parent.parent();
+			// }
+			// Element clickbutton = parent.select("*:matchesOwn(^" + splitInputParameter[1]
+			// + "$)").first();
+			// cssSelectorEle = clickbutton.cssSelector();
+			Elements headerElements = null;
+			headerElements = doc.select("*:matchesOwn(^" + splitInputParameter[0] + "$)");
+			for (Element ele : headerElements) {
+				WebElement selElement = findtableRowSelectElement(ele,
+						Arrays.copyOfRange(splitInputParameter, 1, splitInputParameter.length));
+				if (selElement == null) {
+					continue;
+				} else {
+					selElement.click();
+				}
+			}
+
+		}
+		if (cssSelectorEle != "") {
+
+			WebElement buttonElement = driver.findElement(By.cssSelector(cssSelectorEle));
+			synchronized (buttonElement) {
+				while (buttonElement == null) {
+					try {
+						buttonElement.wait();
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
+				}
+			}
+			buttonElement.click();
+		}
+	}
+
+	private WebElement findtableRowSelectElement(Element ele, String[] copyOfRange) {
+		Element parent = ele.parent();
+		while (parent != null && (parent.select(String.format("table[summary='%s']", copyOfRange[0])).isEmpty()
+				|| parent.select("[alt='" + copyOfRange[0] + "']").isEmpty()
+				|| parent.select("[title='" + copyOfRange[0] + "']").isEmpty())) {
+			parent = parent.parent();
+		}
+		if (parent != null) {
+			Elements secondElements = parent.select(String.format("table[summary='%s']", copyOfRange[0]));
+			for (Element element : secondElements) {
+				if (copyOfRange.length > 1) {
+					findtableRowSelectElement(element, Arrays.copyOfRange(copyOfRange, 1, copyOfRange.length));
+				} else {
+					WebElement Selelement = driver.findElement(By.cssSelector(element.cssSelector()));
+					if (!Selelement.isEnabled() || !Selelement.isDisplayed()) {
+						continue;
+					} else {
+						return Selelement;
+					}
+				}
+			}
+		} else {
+			return null;
+		}
+
+		return null;
+	}
+
+
+
 	private void clickButton(Xpaths xpath) {
 		Elements elements = GettingAllElements(xpath.getAction());
 		String[] splitInputParameter = xpath.getInputParameter().split(">");
@@ -1463,6 +1554,7 @@ public class XpathService {
 		return null;
 	}
 
+	// Method for clickCheckBox
 	// Method for clickCheckBox
 	private void clickCheckBox(Xpaths xpath) {
 
