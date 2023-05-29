@@ -323,7 +323,31 @@ public class XpathService {
 
 				}
 			}
+		
+			if(xpath.getAction().equals("sendKeys") || xpath.getAction().equals("paste") || xpath.getAction().equals("Select Dropdown Values")){
+
+
+			}
+			else{
+				try {
+					Thread.sleep(3000);
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+						CompletableFuture<Object> updateDom = this.updateDOM(js);
+						try {
+							updateDom.get();
+						} catch (InterruptedException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						} catch (ExecutionException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
+			}
 		});
+		
 		// driver.quit();
 	}
 
