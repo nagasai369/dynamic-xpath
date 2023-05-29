@@ -855,10 +855,11 @@ public class XpathService {
 		headerElements = doc.select("*:matchesOwn(^" + splitInputParameter[0] + "$)");
 		for (Element ele : headerElements) {
 			if (splitInputParameter.length == 1) {
-				WebElement selElement = driver.findElement(By.xpath(ele.cssSelector()));
+				WebElement selElement = driver.findElement(By.cssSelector(ele.cssSelector()));
 				if (!selElement.isEnabled()) {
 					continue;
 				} else {
+					selElement =selElement.findElement(By.xpath("./following::input"));
 					selElement.clear();
 					JavascriptExecutor jsExecutor = (JavascriptExecutor) driver;
 					String script = "arguments[0].value = arguments[1]";
@@ -1005,6 +1006,7 @@ public class XpathService {
 				if (!selElement.isEnabled()) {
 					continue;
 				} else {
+					selElement =selElement.findElement(By.xpath("./following::select"));
 					selElement.clear();
 					JavascriptExecutor jsExecutor = (JavascriptExecutor) driver;
 					String script = "arguments[0].value = arguments[1]";
@@ -1378,19 +1380,16 @@ public class XpathService {
 		String[] splitInputParameter = xpath.getInputParameter().split(">");
 		String cssSelectorEle = "";
 		if (splitInputParameter.length == 1) {
-			Elements elements =  doc.select(String.format("table[summary='%s']", splitInputParameter[0]));
-			for(Element element:elements){
+			Elements elements = doc.select(String.format("table[summary='%s']", splitInputParameter[0]));
+			for (Element element : elements) {
 				WebElement tableElement = driver.findElement(By.cssSelector(element.cssSelector()));
-				if(!tableElement.isDisplayed() ||  !tableElement.isEnabled()){
+				if (!tableElement.isDisplayed() || !tableElement.isEnabled()) {
 					continue;
-				}
-				else{
+				} else {
 					cssSelectorEle = element.cssSelector();
 				}
 			}
-					
 
-			
 		} else {
 			// Element headerEle = doc.select(":matchesOwn(^" + splitInputParameter[0] +
 			// "$):not(label,button,a)")
@@ -1435,13 +1434,22 @@ public class XpathService {
 
 	private WebElement findtableRowSelectElement(Element ele, String[] copyOfRange) {
 		Element parent = ele.parent();
-		while (parent != null && (parent.select(String.format("table[summary='%s']", copyOfRange[0])).isEmpty()
-				|| parent.select("[alt='" + copyOfRange[0] + "']").isEmpty()
-				|| parent.select("[title='" + copyOfRange[0] + "']").isEmpty())) {
-			parent = parent.parent();
+		if (copyOfRange.length == 1) {
+			while (parent != null && parent.select(String.format("table[summary='%s']", copyOfRange[0])).isEmpty()) {
+				parent = parent.parent();
+			}
+		} else {
+			while (parent != null && (parent.select("*:matchesOwn(^" + copyOfRange[0] + "$)").isEmpty())) {
+				parent = parent.parent();
+			}
 		}
 		if (parent != null) {
-			Elements secondElements = parent.select(String.format("table[summary='%s']", copyOfRange[0]));
+			Elements secondElements = null;
+			if (copyOfRange.length == 1) {
+				secondElements = parent.select(String.format("table[summary='%s']", copyOfRange[0]));
+			} else {
+				secondElements = parent.select("*:matchesOwn(^" + copyOfRange[0] + "$)");
+			}
 			for (Element element : secondElements) {
 				if (copyOfRange.length > 1) {
 					findtableRowSelectElement(element, Arrays.copyOfRange(copyOfRange, 1, copyOfRange.length));
@@ -1461,8 +1469,6 @@ public class XpathService {
 		return null;
 	}
 
-
-
 	private void clickButton(Xpaths xpath) {
 		Elements elements = GettingAllElements(xpath.getAction());
 		String[] splitInputParameter = xpath.getInputParameter().split(">");
@@ -1470,25 +1476,14 @@ public class XpathService {
 		if (splitInputParameter.length == 1) {
 			for (Element element : elements) {
 				if ((element.text().trim().equalsIgnoreCase(xpath.getInputParameter())
-						|| element.attr("alt").trim().equals(xpath.getInputParameter()))) {
+						|| element.attr("alt").trim().equals(xpath.getInputParameter()) || element.attr("value").equals(xpath.getInputParameter()))) {
 					cssSelectorEle = element.cssSelector();
+					break;
 
 				}
 			}
 		} else {
-			// Element headerEle = doc.select(":matchesOwn(^" + splitInputParameter[0] +
-			// "$):not(label,button,a)")
-			// .last();
-			// Element parent = headerEle.parent();
-			// while (parent != null
-			// && parent.select("*:matchesOwn(^" + splitInputParameter[1] + "$)").isEmpty())
-			// {
-			// parent = parent.parent();
-			// }
-			// Element clickbutton = parent.select("*:matchesOwn(^" + splitInputParameter[1]
-			// + "$)").first();
-			// cssSelectorEle = clickbutton.cssSelector();
-			Elements headerElements = null;
+				Elements headerElements = null;
 			headerElements = doc.select("*:matchesOwn(^" + splitInputParameter[0] + "$)");
 			for (Element ele : headerElements) {
 				WebElement selElement = findButtonElement(ele,
