@@ -249,6 +249,8 @@ public class XpathService {
 				login(xpath);
 			} else if (xpath.getAction().equals("sendKeys")) {
 				sendKeys(xpath);
+			} else if (xpath.getAction().equals("clickCheckbox")) {
+				clickCheckbox(xpath);
 			} else if (xpath.getAction().equals("datePicker")) {
 				datePicker(xpath);
 			} else if (xpath.getAction().equals("textArea")) {
@@ -765,9 +767,8 @@ public class XpathService {
 		return null;
 	}
 
-
 	private List<WebElement> findDatePicker(Element ele, String[] copyOfRange) {
-		List<WebElement> elemets= new ArrayList<>();
+		List<WebElement> elemets = new ArrayList<>();
 		Element parent = ele.parent();
 		while (parent != null && parent.select(":matchesOwn(^" + copyOfRange[0] + "$)").isEmpty()) {
 			parent = parent.parent();
@@ -793,7 +794,7 @@ public class XpathService {
 						elemets.add(Selelement1);
 						elemets.add(Selelement);
 
-						return elemets ;
+						return elemets;
 					}
 				}
 			}
@@ -803,7 +804,6 @@ public class XpathService {
 
 		return null;
 	}
-
 
 	@Async
 	public CompletableFuture<String> getPageSource(WebDriver driver) {
@@ -1077,6 +1077,69 @@ public class XpathService {
 
 	}
 
+	private void clickCheckbox(Xpaths xpath) {
+		String[] splitInputParameter = xpath.getInputParameter().split(">");
+		Elements headerElements = null;
+		headerElements = doc.select("*:matchesOwn(^" + splitInputParameter[0] + "$)");
+		if (headerElements.size() == 0) {
+			headerElements = doc.select("*[data-value=" + splitInputParameter[0] + "]");
+		}
+		for (Element ele : headerElements) {
+			WebElement selElement = findCheckBoxElement(ele,
+					xpath.getInputValue());
+			if (selElement == null) {
+				continue;
+			} else {
+				// selElement.clear();
+				// previousEle = selElement;
+				// JavascriptExecutor jsExecutor = (JavascriptExecutor) driver;
+				// jsExecutor.executeScript("arguments[0].click();", selElement);
+				// String script = "arguments[0].value = arguments[1]";
+				// jsExecutor.executeScript(script, selElement, xpath.getInputValue());
+				// jsExecutor.executeScript("arguments[0].click();", selElement);
+				// break;
+				try {
+					selElement.click();
+				} catch (Exception ex) {
+					JavascriptExecutor jsExecutor = (JavascriptExecutor) driver;
+					jsExecutor.executeScript("arguments[0].click();", selElement);
+				}
+			}
+		}
+
+	}
+
+	private WebElement findCheckBoxElement(Element ele, String inputValue) {
+		Element parent = ele.parent();
+		while (parent != null && parent.select(":matchesOwn(^" + inputValue + "$)").isEmpty()) {
+			parent = parent.parent();
+		}
+		if (parent != null) {
+			Elements secondElements = parent.select(":matchesOwn(^" + inputValue + "$)");
+			for (Element element : secondElements) {
+
+				WebElement Selelement = null;
+				try {
+					Selelement = driver.findElement(By.cssSelector(element.cssSelector()));
+				} catch (Exception e) {
+					Selelement = driver
+							.findElement(By.xpath(("\\#root".equalsIgnoreCase(element.cssSelector())) ? null
+									: CSS2XPath.css2xpath(element.cssSelector(), true)));
+				}
+				if (!Selelement.isEnabled() || !Selelement.isDisplayed()) {
+					continue;
+				} else {
+					Selelement = Selelement.findElement(By.xpath("./following::input"));
+					return Selelement;
+				}
+
+			}
+		} else {
+			return null;
+		}
+
+		return null;
+	}
 
 	private void datePicker(Xpaths xpath) {
 		String[] splitInputParameter = xpath.getInputParameter().split(">");
@@ -1103,8 +1166,8 @@ public class XpathService {
 					JavascriptExecutor jsExecutor = (JavascriptExecutor) driver;
 					jsExecutor.executeScript("arguments[0].click();", selElement);
 					String script = "arguments[0].value = arguments[1]";
-					jsExecutor.executeScript(script, selElement, xpath.getInputValue()+ " ");
-					jsExecutor.executeScript("var backspaceKeyEvent = new KeyboardEvent('keydown', { 'key': 'Backspace', 'code': 'Backspace', 'bubbles': true, 'cancelable': true }); document.dispatchEvent(backspaceKeyEvent);");
+					jsExecutor.executeScript(script, selElement, xpath.getInputValue() + " ");
+					selElement.sendKeys(Keys.BACK_SPACE);
 					break;
 				}
 			}
@@ -1118,10 +1181,8 @@ public class XpathService {
 				JavascriptExecutor jsExecutor = (JavascriptExecutor) driver;
 				jsExecutor.executeScript("arguments[0].click();", selElement.get(0));
 				String script = "arguments[0].value = arguments[1]";
-				jsExecutor.executeScript(script, selElement.get(0), xpath.getInputValue());
-				jsExecutor.executeScript("arguments[0].click();", selElement.get(0));
-				jsExecutor.executeScript("arguments[0].click();", selElement.get(1));
-				
+				jsExecutor.executeScript(script, selElement.get(0), xpath.getInputValue() + " ");
+				selElement.get(0).sendKeys(Keys.BACK_SPACE);
 				break;
 			}
 		}
@@ -1341,14 +1402,14 @@ public class XpathService {
 						// JavascriptExecutor jsExecutor = (JavascriptExecutor) driver;
 						// CompletableFuture<Object> updateDo = this.updateDOM(jsExecutor);
 						// try {
-						// 	Object update = updateDo.get();
+						// Object update = updateDo.get();
 						// } catch (InterruptedException | ExecutionException e) {
-						// 	// TODO Auto-generated catch block
-						// 	e.printStackTrace();
+						// // TODO Auto-generated catch block
+						// e.printStackTrace();
 						// }
 						// findDropdownOption(element, inputValue);
 						WebElement SearchSelelement = Selelement
-						.findElement(By.xpath("./following::*[text()='" + inputValue + "']"));
+								.findElement(By.xpath("./following::*[text()='" + inputValue + "']"));
 						return SearchSelelement;
 					}
 				}
@@ -1831,7 +1892,6 @@ public class XpathService {
 		return null;
 	}
 
-	// Method for clickCheckBox
 	// Method for clickCheckBox
 	private void clickCheckBox(Xpaths xpath) {
 
