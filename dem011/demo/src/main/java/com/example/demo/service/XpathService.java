@@ -27,6 +27,7 @@ import com.example.demo.dto.Response;
 import com.example.demo.dto.Xpaths;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import java.awt.*;
 import java.awt.datatransfer.Clipboard;
 import java.awt.datatransfer.StringSelection;
@@ -41,6 +42,7 @@ public class XpathService {
 	private Xpaths clickMoreXpath;
 	private WebElement previousEle;
 	private String copyNumber;
+	private String sendKeysValue;
 
 	public XpathService() {
 	}
@@ -89,12 +91,6 @@ public class XpathService {
 				}
 			} else if (xpath.getAction().equals("keyEnter")) {
 				previousEle.sendKeys(Keys.ENTER);
-				try {
-					Thread.sleep(5000);
-				} catch (InterruptedException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
 			} else if (xpath.getAction().equals("pageLoad")) {
 				// previousEle.sendKeys(Keys.TAB);
 				try {
@@ -149,6 +145,8 @@ public class XpathService {
 					}
 				}
 
+			} else if (xpath.getAction().equals("copy")) {
+				copy(xpath);
 			} else if (xpath.getAction().equals("windowhandle")) {
 				String parentWindowHandle = driver.getWindowHandle();
 				Set<String> windowHandles = driver.getWindowHandles();
@@ -210,30 +208,15 @@ public class XpathService {
 				}
 
 			} else if (xpath.getAction().equals("switchToFrame")) {
-				String cssSelector = getXpath(xpath, doc, false);
-				WebElement frameElement = driver.findElement(By.cssSelector(cssSelector));
-				synchronized (frameElement) {
-					while (frameElement == null) {
-						try {
-							frameElement.wait();
-						} catch (InterruptedException e) {
-							// TODO Auto-generated catch block
-							e.printStackTrace();
-						}
-					}
-					System.out.println("Found element1: " + frameElement.getText());
-
-				}
-
-				driver.switchTo().frame(frameElement);
-				CompletableFuture<Object> updateDo = this.updateDOM(js);
+				SwitchToFrame(xpath);
+				CompletableFuture<Object> updateDo1 = this.updateDOM(js);
 				try {
-					Object update = updateDo.get();
+					Object update = updateDo1.get();
+
 				} catch (InterruptedException | ExecutionException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
-
 			} else if (xpath.getAction().equals("switchToDefaultFrame")) {
 				driver.switchTo().defaultContent();
 				CompletableFuture<Object> updateDo = this.updateDOM(js);
@@ -251,12 +234,14 @@ public class XpathService {
 				sendKeys(xpath);
 			} else if (xpath.getAction().equals("clickCheckbox")) {
 				clickCheckbox(xpath);
+			} else if (xpath.getAction().equals("clickRadioButton")) {
+				clickRadioButton(xpath);
 			} else if (xpath.getAction().equals("datePicker")) {
 				datePicker(xpath);
 			} else if (xpath.getAction().equals("textArea")) {
 				textArea(xpath);
 			} else if (xpath.getAction().equals("clickButton")) {
-				clickButton(xpath);
+				clickLink(xpath);
 			} else if (xpath.getAction().equals("clickLink")) {
 				clickLink(xpath);
 			} else if (xpath.getAction().equals("clickImage")) {
@@ -313,6 +298,150 @@ public class XpathService {
 		});
 
 		// driver.quit();
+	}
+
+	private void copy(Xpaths xpath) {
+		String[] splitInputParameter = xpath.getInputParameter().split(">");
+		Elements headerElements = null;
+		String getElementtoCheck = "";
+		if (splitInputParameter.length == 1) {
+			headerElements = doc.select("*[placeholder='" + splitInputParameter[0] + "']");
+			getElementtoCheck = "placeholder";
+		}
+		if (headerElements == null || headerElements.size() == 0) {
+			headerElements = doc.select("*:matchesOwn(^" + splitInputParameter[0] + "$)");
+			getElementtoCheck = "normal";
+		}
+		if (headerElements.size() == 0) {
+			headerElements = doc.select("*[data-value=" + splitInputParameter[0] + "]");
+			getElementtoCheck = "dataValue";
+		}
+		for (Element ele : headerElements) {
+			if (splitInputParameter.length == 1) {
+				WebElement selElement = null;
+				try {
+					selElement = driver.findElement(By.cssSelector(ele.cssSelector()));
+				} catch (Exception e) {
+					try {
+						selElement = driver.findElement(By.xpath(("\\#root".equalsIgnoreCase(ele.cssSelector())) ? null
+								: CSS2XPath.css2xpath(ele.cssSelector(), true)));
+					} catch (Exception ex) {
+						// if (getElementtoCheck == "dataValue") {
+						// selElement = driver.findElement(By.xpath("//*[@data-value='" + ele.text() +
+						// "']"));
+						// } else if (getElementtoCheck == "placeholder") {
+						// selElement = driver
+						// .findElement(By.xpath("//*[@placeholder='" + splitInputParameter[0] + "']"));
+						// } else {
+						// selElement = driver.findElement(By.xpath("//*[text()='" + ele.text() +
+						// "']"));
+						// }
+						selElement = driver.findElement(By.xpath(getXPath(ele)));
+					}
+				}
+				if (!selElement.isEnabled() || !selElement.isDisplayed()) {
+					continue;
+				} else {
+					// if (getElementtoCheck != "placeholder")
+					List<WebElement> sWebElements = selElement.findElements(By.xpath("./following::*"));
+					WebElement elementWithTextNextToGivenElement = null;
+					for (WebElement element : sWebElements) {
+						String elementText = element.getText();
+						if (!elementText.isEmpty() && !element.isEnabled() && !element.isDisplayed()) {
+							// The element has text
+							elementWithTextNextToGivenElement = element;
+							break;
+						}
+					}
+					copyNumber = elementWithTextNextToGivenElement.getText();
+					break;
+				}
+			} else {
+				WebElement selElement = null;
+				try {
+					selElement = driver.findElement(By.cssSelector(ele.cssSelector()));
+				} catch (Exception e) {
+					try {
+						selElement = driver.findElement(By.xpath(("\\#root".equalsIgnoreCase(ele.cssSelector())) ? null
+								: CSS2XPath.css2xpath(ele.cssSelector(), true)));
+					} catch (Exception ex) {
+						// if (getElementtoCheck == "dataValue") {
+						// selElement = driver.findElement(By.xpath("//*[@data-value='" + ele.text() +
+						// "']"));
+						// } else if (getElementtoCheck == "placeholder") {
+						// selElement = driver
+						// .findElement(By.xpath("//*[@placeholder='" + splitInputParameter[0] + "']"));
+						// } else {
+						// selElement = driver.findElement(By.xpath("//*[text()='" + ele.text() +
+						// "']"));
+						// }
+						selElement = driver.findElement(By.xpath(getXPath(ele)));
+					}
+				}
+				if (!selElement.isEnabled() && !selElement.isDisplayed()) {
+					continue;
+				}
+				selElement = findTheCopyElement(ele,
+						Arrays.copyOfRange(splitInputParameter, 1, splitInputParameter.length));
+				if (selElement == null) {
+					continue;
+				} else {
+					copyNumber = selElement.getText();
+					break;
+				}
+			}
+		}
+
+	}
+
+	private WebElement findTheCopyElement(Element ele, String[] copyOfRange) {
+		Element parent = ele.parent();
+		while (parent != null && parent.select(":matchesOwn(^" + copyOfRange[0] + "$)").isEmpty()) {
+			parent = parent.parent();
+		}
+		if (parent != null) {
+			Elements secondElements = parent.select(":matchesOwn(^" + copyOfRange[0] + "$)");
+			for (Element element : secondElements) {
+				if (copyOfRange.length > 1) {
+					findTheElement(element, Arrays.copyOfRange(copyOfRange, 1, copyOfRange.length));
+				} else {
+					WebElement Selelement = null;
+					try {
+						Selelement = driver.findElement(By.cssSelector(element.cssSelector()));
+					} catch (Exception e) {
+						try {
+							Selelement = driver
+									.findElement(By.xpath(("\\#root".equalsIgnoreCase(element.cssSelector())) ? null
+											: CSS2XPath.css2xpath(element.cssSelector(), true)));
+						} catch (Exception ex) {
+							Selelement = driver.findElement(By.xpath(getXPath(element)));
+						}
+					}
+					if (!Selelement.isEnabled() || !Selelement.isDisplayed()) {
+						continue;
+					} else {
+						java.util.List<WebElement> followingElements = Selelement
+								.findElements(By.xpath("following::*"));
+
+						// Loop through the following elements to find the first one that has text
+						WebElement elementWithTextNextToGivenElement = null;
+						for (WebElement elem : followingElements) {
+							String elementText = elem.getText();
+							if (!elementText.isEmpty() && elem.isEnabled() && elem.isDisplayed()) {
+								// The element has text
+								elementWithTextNextToGivenElement = elem;
+								break;
+							}
+						}
+						return elementWithTextNextToGivenElement;
+					}
+				}
+			}
+		} else {
+			return null;
+		}
+
+		return null;
 	}
 
 	private String clickOnOKMethod(String replace) {
@@ -748,14 +877,165 @@ public class XpathService {
 					try {
 						Selelement = driver.findElement(By.cssSelector(element.cssSelector()));
 					} catch (Exception e) {
-						Selelement = driver
-								.findElement(By.xpath(("\\#root".equalsIgnoreCase(element.cssSelector())) ? null
-										: CSS2XPath.css2xpath(element.cssSelector(), true)));
+						try {
+							Selelement = driver
+									.findElement(By.xpath(("\\#root".equalsIgnoreCase(element.cssSelector())) ? null
+											: CSS2XPath.css2xpath(element.cssSelector(), true)));
+						} catch (Exception ex) {
+							Selelement = driver.findElement(By.xpath(getXPath(element)));
+						}
+
 					}
 					if (!Selelement.isEnabled() || !Selelement.isDisplayed()) {
 						continue;
 					} else {
-						Selelement = Selelement.findElement(By.xpath("./following::input"));
+						Selelement = Selelement.findElement(By.xpath("./following::input[not(@type='hidden')]"));
+						return Selelement;
+					}
+				}
+			}
+		} else {
+			return null;
+		}
+
+		return null;
+	}
+
+	private WebElement findTheSelectAVAlueElement(Element ele, String[] copyOfRange, String string) {
+		Element parent = ele.parent();
+		while (parent != null && parent.select(":matchesOwn(^" + copyOfRange[0] + "$)").isEmpty()) {
+			parent = parent.parent();
+		}
+		if (parent != null) {
+			Elements secondElements = parent.select(":matchesOwn(^" + copyOfRange[0] + "$)");
+			for (Element element : secondElements) {
+				if (copyOfRange.length > 1) {
+					findTheSelectAVAlueElement(element, Arrays.copyOfRange(copyOfRange, 1, copyOfRange.length), string);
+				} else {
+					WebElement Selelement = null;
+					try {
+						Selelement = driver.findElement(By.cssSelector(element.cssSelector()));
+					} catch (Exception e) {
+						try{
+						Selelement = driver
+								.findElement(By.xpath(("\\#root".equalsIgnoreCase(element.cssSelector())) ? null
+										: CSS2XPath.css2xpath(element.cssSelector(), true)));
+						}
+						catch(Exception ex){
+							Selelement=driver.findElement(By.xpath(getXPath(element)));
+						}
+					}
+					if (!Selelement.isEnabled() || !Selelement.isDisplayed()) {
+						continue;
+					} else {
+						Element parent1 = element.parent();
+						Element splitedElement = null;
+						while (parent1 != null) {
+
+							if (!parent1.select(":matchesOwn(^" + string + "$)").isEmpty()) {
+
+								break;
+							}
+							// else {
+
+							// if(sendKeysValue.equals(string)){
+
+							// String[] parts = string.split(" ");
+
+							// String selector = Arrays.stream(parts)
+
+							// .map(p -> ":matchesOwn(^" + p + "$)")
+
+							// .collect(Collectors.joining(", "));
+
+							// Element element2 = doc.select(selector).parents().stream()
+
+							// .filter(e -> Arrays.stream(parts)
+
+							// .allMatch(p -> e.select(":matchesOwn(^" + p + "$)").size() == 1))
+
+							// .findFirst()
+
+							// .orElse(null);
+
+							// if (element2 != null) {
+
+							// splitedElement = element2;
+
+							// break;
+
+							// }
+
+							// }
+
+							// else{
+
+							// String parts1 = string.replaceAll(sendKeysValue,"");
+
+							// Elements elements1 = parent1.select(":matchesOwn(^" + sendKeysValue + "$), "
+
+							// + ":containsOwn(^" + parts1 + "$)");
+
+							// Element element1 = elements1.parents().stream()
+
+							// .filter(e -> e.select(":matchesOwn(^" + sendKeysValue + "$)").size() == 1
+
+							// && e.select(":containsOwn(^" + parts1 + "$)").size() == 1)
+
+							// .findFirst()
+
+							// .orElse(null);
+
+							// if (element1 != null) {
+
+							// splitedElement = element1;
+
+							// break;
+
+							// }
+
+							// }
+
+							// }
+							else if (!parent1.select("[title='" + string + "']").isEmpty()) {
+								break;
+							}
+							parent1 = parent1.parent();
+
+						}
+						if (parent1 != null) {
+							Elements selectAValueElement = null;
+							if (!parent1.select(":matchesOwn(^" + string + "$)").isEmpty()) {
+								selectAValueElement = parent.select(":matchesOwn(^" + string + "$)");
+							} else if (!parent1.select("[title='" + string + "']").isEmpty()) {
+								selectAValueElement = parent1.select("[title='" + string + "']");
+							}
+							for (Element element1 : selectAValueElement) {
+								// if (!element.parent().text().equals(element.text())) {
+								// continue;
+								// }
+								WebElement selele = null;
+								try {
+									selele = driver.findElement(By.cssSelector(element1.cssSelector()));
+								} catch (Exception e) {
+									try {
+										selele = driver
+												.findElement(
+														By.xpath(("\\#root".equalsIgnoreCase(element1.cssSelector()))
+																? null
+																: CSS2XPath.css2xpath(element1.cssSelector(), true)));
+									} catch (Exception ex) {
+										selele = driver
+												.findElement(By.xpath("//*[@class='" + element1.parent().attr("class")
+														+ "']/child::*[@class='" + element1.attr("class") + "']"));
+									}
+								}
+								if (!selele.isEnabled() || !selele.isDisplayed()) {
+									continue;
+								}
+								return selele;
+							}
+						}
 						return Selelement;
 					}
 				}
@@ -783,9 +1063,13 @@ public class XpathService {
 					try {
 						Selelement = driver.findElement(By.cssSelector(element.cssSelector()));
 					} catch (Exception e) {
-						Selelement = driver
-								.findElement(By.xpath(("\\#root".equalsIgnoreCase(element.cssSelector())) ? null
-										: CSS2XPath.css2xpath(element.cssSelector(), true)));
+						try {
+							Selelement = driver
+									.findElement(By.xpath(("\\#root".equalsIgnoreCase(element.cssSelector())) ? null
+											: CSS2XPath.css2xpath(element.cssSelector(), true)));
+						} catch (Exception ex) {
+							Selelement = driver.findElement(By.xpath(getXPath(element)));
+						}
 					}
 					if (!Selelement.isEnabled() || !Selelement.isDisplayed()) {
 						continue;
@@ -927,8 +1211,19 @@ public class XpathService {
 		headerElements = doc.select("*:matchesOwn(^" + splitInputParameter[0] + "$)");
 		for (Element ele : headerElements) {
 			if (splitInputParameter.length == 1) {
-				WebElement selElement = driver.findElement(By.xpath(ele.cssSelector()));
-				if (!selElement.isEnabled()) {
+				WebElement selElement = null;
+				try {
+					selElement = driver.findElement(By.cssSelector(ele.cssSelector()));
+				} catch (Exception e) {
+					try {
+						selElement = driver
+								.findElement(By.xpath(("\\#root".equalsIgnoreCase(ele.cssSelector())) ? null
+										: CSS2XPath.css2xpath(ele.cssSelector(), true)));
+					} catch (Exception ex) {
+						selElement = driver.findElement(By.xpath(getXPath(ele)));
+					}
+				}
+				if (!selElement.isDisplayed() || !selElement.isEnabled()) {
 					continue;
 				} else {
 					selElement.clear();
@@ -938,16 +1233,34 @@ public class XpathService {
 					break;
 				}
 			}
-			WebElement selElement = findTheElement(ele,
-					Arrays.copyOfRange(splitInputParameter, 1, splitInputParameter.length));
-			if (selElement == null) {
-				continue;
-			} else {
-				selElement.clear();
-				JavascriptExecutor jsExecutor = (JavascriptExecutor) driver;
-				String script = "arguments[0].value = arguments[1]";
-				jsExecutor.executeScript(script, selElement, xpath.getInputValue());
-				break;
+
+			else {
+				WebElement selElement = null;
+				try {
+					selElement = driver.findElement(By.cssSelector(ele.cssSelector()));
+				} catch (Exception e) {
+					try {
+						selElement = driver
+								.findElement(By.xpath(("\\#root".equalsIgnoreCase(ele.cssSelector())) ? null
+										: CSS2XPath.css2xpath(ele.cssSelector(), true)));
+					} catch (Exception ex) {
+						selElement = driver.findElement(By.xpath(getXPath(ele)));
+					}
+				}
+				if (!selElement.isDisplayed() || !selElement.isEnabled()) {
+					continue;
+				}
+				selElement = findTheElement(ele,
+						Arrays.copyOfRange(splitInputParameter, 1, splitInputParameter.length));
+				if (selElement == null) {
+					continue;
+				} else {
+					selElement.clear();
+					JavascriptExecutor jsExecutor = (JavascriptExecutor) driver;
+					String script = "arguments[0].value = arguments[1]";
+					jsExecutor.executeScript(script, selElement, xpath.getInputValue());
+					break;
+				}
 			}
 		}
 
@@ -965,7 +1278,21 @@ public class XpathService {
 		headerElements = doc.select("*:matchesOwn(^" + splitInputParameter[0] + "$)");
 		for (Element ele : headerElements) {
 			if (splitInputParameter.length == 1) {
-				WebElement selElement = driver.findElement(By.cssSelector(ele.cssSelector()));
+				WebElement selElement=null;
+					try {
+						selElement = driver.findElement(By.cssSelector(ele.cssSelector()));
+					} catch (Exception e) {
+						try {
+							selElement = driver
+									.findElement(By.xpath(("\\#root".equalsIgnoreCase(ele.cssSelector())) ? null
+											: CSS2XPath.css2xpath(ele.cssSelector(), true)));
+						} catch (Exception ex) {
+							selElement = driver.findElement(By.xpath(getXPath(ele)));
+						}
+					}
+					if (!selElement.isDisplayed() || !selElement.isEnabled()) {
+						continue;
+					}
 				selElement = selElement.findElement(By.xpath("./following::select"));
 				if (!selElement.isEnabled()) {
 					continue;
@@ -982,7 +1309,23 @@ public class XpathService {
 					break;
 				}
 			}
-			WebElement selElement = findselectDropdownElement(ele,
+			else{
+				WebElement selElement=null;
+					try {
+						selElement = driver.findElement(By.cssSelector(ele.cssSelector()));
+					} catch (Exception e) {
+						try {
+							selElement = driver
+									.findElement(By.xpath(("\\#root".equalsIgnoreCase(ele.cssSelector())) ? null
+											: CSS2XPath.css2xpath(ele.cssSelector(), true)));
+						} catch (Exception ex) {
+							selElement = driver.findElement(By.xpath(getXPath(ele)));
+						}
+					}
+					if (!selElement.isDisplayed() || !selElement.isEnabled()) {
+						continue;
+					}
+			selElement = findselectDropdownElement(ele,
 					Arrays.copyOfRange(splitInputParameter, 1, splitInputParameter.length));
 			if (selElement == null) {
 				continue;
@@ -999,6 +1342,7 @@ public class XpathService {
 				break;
 			}
 		}
+	}
 
 	}
 
@@ -1013,12 +1357,26 @@ public class XpathService {
 				if (copyOfRange.length > 1) {
 					findselectDropdownElement(element, Arrays.copyOfRange(copyOfRange, 1, copyOfRange.length));
 				} else {
-					WebElement Selelement = driver.findElement(By.cssSelector(element.cssSelector()));
-					Selelement = Selelement.findElement(By.xpath("./following::select"));
-					if (!Selelement.isEnabled()) {
+					WebElement selElement=null;
+					try {
+						selElement = driver.findElement(By.cssSelector(element.cssSelector()));
+					} catch (Exception e) {
+						try {
+							selElement = driver
+									.findElement(By.xpath(("\\#root".equalsIgnoreCase(element.cssSelector())) ? null
+											: CSS2XPath.css2xpath(element.cssSelector(), true)));
+						} catch (Exception ex) {
+							selElement = driver.findElement(By.xpath(getXPath(element)));
+						}
+					}
+					if (!selElement.isDisplayed() || !selElement.isEnabled()) {
+						continue;
+					}
+					selElement = selElement.findElement(By.xpath("./following::select"));
+					if (!selElement.isEnabled() && !selElement.isDisplayed()) {
 						continue;
 					} else {
-						return Selelement;
+						return selElement;
 					}
 				}
 			}
@@ -1033,9 +1391,18 @@ public class XpathService {
 	private void sendKeys(Xpaths xpath) {
 		String[] splitInputParameter = xpath.getInputParameter().split(">");
 		Elements headerElements = null;
-		headerElements = doc.select("*:matchesOwn(^" + splitInputParameter[0] + "$)");
+		String getElementtoCheck = "";
+		if (splitInputParameter.length == 1) {
+			headerElements = doc.select("*[placeholder='" + splitInputParameter[0] + "']");
+			getElementtoCheck = "placeholder";
+		}
+		if (headerElements == null || headerElements.size() == 0) {
+			headerElements = doc.select("*:matchesOwn(^" + splitInputParameter[0] + "$)");
+			getElementtoCheck = "normal";
+		}
 		if (headerElements.size() == 0) {
 			headerElements = doc.select("*[data-value=" + splitInputParameter[0] + "]");
+			getElementtoCheck = "dataValue";
 		}
 		for (Element ele : headerElements) {
 			if (splitInputParameter.length == 1) {
@@ -1043,35 +1410,76 @@ public class XpathService {
 				try {
 					selElement = driver.findElement(By.cssSelector(ele.cssSelector()));
 				} catch (Exception e) {
-					selElement = driver.findElement(By.xpath(("\\#root".equalsIgnoreCase(ele.cssSelector())) ? null
-							: CSS2XPath.css2xpath(ele.cssSelector(), true)));
+					try {
+						selElement = driver.findElement(By.xpath(("\\#root".equalsIgnoreCase(ele.cssSelector())) ? null
+								: CSS2XPath.css2xpath(ele.cssSelector(), true)));
+					} catch (Exception ex) {
+						selElement = driver.findElement(By.xpath(getXPath(ele)));
+					}
 				}
 				if (!selElement.isEnabled() || !selElement.isDisplayed()) {
 					continue;
 				} else {
-					selElement = selElement.findElement(By.xpath("./following::input"));
+					if (getElementtoCheck != "placeholder")
+						selElement = selElement.findElement(By.xpath("./following::input[not(@type='hidden')]"));
 					previousEle = selElement;
-					selElement.clear();
-					JavascriptExecutor jsExecutor = (JavascriptExecutor) driver;
-					jsExecutor.executeScript("arguments[0].click();", selElement);
-					String script = "arguments[0].value = arguments[1]";
-					jsExecutor.executeScript(script, selElement, xpath.getInputValue());
+					try {
+						selElement.clear();
+						selElement.sendKeys(xpath.getInputValue());
+						previousEle = selElement;
+						sendKeysValue = xpath.getInputValue();
+					} catch (Exception ex) {
+						JavascriptExecutor jsExecutor = (JavascriptExecutor) driver;
+						jsExecutor.executeScript("arguments[0].value = '';", selElement);
+						previousEle = selElement;
+						// jsExecutor.executeScript("arguments[0].click();", selElement);
+						String script = "arguments[0].value = arguments[1]";
+						// jsExecutor.executeScript("arguments[0].focus();", selElement);
+						jsExecutor.executeScript(script, selElement, xpath.getInputValue() + " ");
+						selElement.sendKeys(Keys.BACK_SPACE);
+						sendKeysValue = xpath.getInputValue();
+					}
 					break;
 				}
-			}
-			WebElement selElement = findTheElement(ele,
-					Arrays.copyOfRange(splitInputParameter, 1, splitInputParameter.length));
-			if (selElement == null) {
-				continue;
 			} else {
-				selElement.clear();
-				previousEle = selElement;
-				JavascriptExecutor jsExecutor = (JavascriptExecutor) driver;
-				jsExecutor.executeScript("arguments[0].click();", selElement);
-				String script = "arguments[0].value = arguments[1]";
-				jsExecutor.executeScript(script, selElement, xpath.getInputValue());
-				jsExecutor.executeScript("arguments[0].click();", selElement);
-				break;
+				WebElement selElement = null;
+				try {
+					selElement = driver.findElement(By.cssSelector(ele.cssSelector()));
+				} catch (Exception e) {
+					try {
+						selElement = driver.findElement(By.xpath(("\\#root".equalsIgnoreCase(ele.cssSelector())) ? null
+								: CSS2XPath.css2xpath(ele.cssSelector(), true)));
+					} catch (Exception ex) {
+						selElement = driver.findElement(By.xpath(getXPath(ele)));
+					}
+				}
+				if (!selElement.isEnabled() || !selElement.isDisplayed()) {
+					continue;
+				}
+				selElement = findTheElement(ele,
+						Arrays.copyOfRange(splitInputParameter, 1, splitInputParameter.length));
+				if (selElement == null) {
+					continue;
+				} else {
+					try {
+						selElement.clear();
+						selElement.sendKeys(xpath.getInputValue());
+						previousEle = selElement;
+						sendKeysValue = xpath.getInputValue();
+					} catch (Exception ex) {
+						JavascriptExecutor jsExecutor = (JavascriptExecutor) driver;
+						jsExecutor.executeScript("arguments[0].value = '';", selElement);
+						previousEle = selElement;
+						jsExecutor.executeScript("arguments[0].click();", selElement);
+						String script = "arguments[0].value = arguments[1]";
+						// jsExecutor.executeScript("arguments[0].focus();", selElement);
+						jsExecutor.executeScript(script, selElement, xpath.getInputValue() + " ");
+						selElement.sendKeys(Keys.BACK_SPACE);
+						sendKeysValue = xpath.getInputValue();
+					}
+
+					break;
+				}
 			}
 		}
 
@@ -1085,6 +1493,21 @@ public class XpathService {
 			headerElements = doc.select("*[data-value=" + splitInputParameter[0] + "]");
 		}
 		for (Element ele : headerElements) {
+			WebElement Selelement = null;
+			try {
+				Selelement = driver.findElement(By.cssSelector(ele.cssSelector()));
+			} catch (Exception e) {
+				try {
+					Selelement = driver
+							.findElement(By.xpath(("\\#root".equalsIgnoreCase(ele.cssSelector())) ? null
+									: CSS2XPath.css2xpath(ele.cssSelector(), true)));
+				} catch (Exception ex) {
+					Selelement = driver.findElement(By.xpath(getXPath(ele)));
+				}
+			}
+			if (!Selelement.isEnabled() || !Selelement.isDisplayed()) {
+				continue;
+			}
 			WebElement selElement = findCheckBoxElement(ele,
 					xpath.getInputValue());
 			if (selElement == null) {
@@ -1122,14 +1545,101 @@ public class XpathService {
 				try {
 					Selelement = driver.findElement(By.cssSelector(element.cssSelector()));
 				} catch (Exception e) {
-					Selelement = driver
-							.findElement(By.xpath(("\\#root".equalsIgnoreCase(element.cssSelector())) ? null
-									: CSS2XPath.css2xpath(element.cssSelector(), true)));
+					try {
+						Selelement = driver
+								.findElement(By.xpath(("\\#root".equalsIgnoreCase(element.cssSelector())) ? null
+										: CSS2XPath.css2xpath(element.cssSelector(), true)));
+					} catch (Exception ex) {
+						Selelement = driver.findElement(By.xpath(getXPath(element)));
+					}
 				}
 				if (!Selelement.isEnabled() || !Selelement.isDisplayed()) {
 					continue;
 				} else {
 					Selelement = Selelement.findElement(By.xpath("./following::input"));
+					return Selelement;
+				}
+
+			}
+		} else {
+			return null;
+		}
+
+		return null;
+	}
+
+	private void clickRadioButton(Xpaths xpath) {
+		String[] splitInputParameter = xpath.getInputParameter().split(">");
+		Elements headerElements = null;
+		headerElements = doc.select("*:matchesOwn(^" + splitInputParameter[0] + "$)");
+		if (headerElements.size() == 0) {
+			headerElements = doc.select("*[data-value=" + splitInputParameter[0] + "]");
+		}
+		for (Element ele : headerElements) {
+			WebElement Selelement = null;
+			try {
+				Selelement = driver.findElement(By.cssSelector(ele.cssSelector()));
+			} catch (Exception e) {
+				try {
+					Selelement = driver
+							.findElement(By.xpath(("\\#root".equalsIgnoreCase(ele.cssSelector())) ? null
+									: CSS2XPath.css2xpath(ele.cssSelector(), true)));
+				} catch (Exception ex) {
+					Selelement = driver.findElement(By.xpath(getXPath(ele)));
+				}
+			}
+			if (!Selelement.isEnabled() || !Selelement.isDisplayed()) {
+				continue;
+			}
+			WebElement selElement = findRadioButtonElement(ele,
+					xpath.getInputValue());
+			if (selElement == null) {
+				continue;
+			} else {
+				// selElement.clear();
+				// previousEle = selElement;
+				// JavascriptExecutor jsExecutor = (JavascriptExecutor) driver;
+				// jsExecutor.executeScript("arguments[0].click();", selElement);
+				// String script = "arguments[0].value = arguments[1]";
+				// jsExecutor.executeScript(script, selElement, xpath.getInputValue());
+				// jsExecutor.executeScript("arguments[0].click();", selElement);
+				// break;
+				try {
+					selElement.click();
+				} catch (Exception ex) {
+					JavascriptExecutor jsExecutor = (JavascriptExecutor) driver;
+					jsExecutor.executeScript("arguments[0].click();", selElement);
+				}
+			}
+		}
+
+	}
+
+	private WebElement findRadioButtonElement(Element ele, String inputValue) {
+		Element parent = ele.parent();
+		while (parent != null && parent.select(":matchesOwn(^" + inputValue + "$)").isEmpty()) {
+			parent = parent.parent();
+		}
+		if (parent != null) {
+			Elements secondElements = parent.select(":matchesOwn(^" + inputValue + "$)");
+			for (Element element : secondElements) {
+
+				WebElement Selelement = null;
+				try {
+					Selelement = driver.findElement(By.cssSelector(element.cssSelector()));
+				} catch (Exception e) {
+					try {
+						Selelement = driver
+								.findElement(By.xpath(("\\#root".equalsIgnoreCase(element.cssSelector())) ? null
+										: CSS2XPath.css2xpath(element.cssSelector(), true)));
+					} catch (Exception ex) {
+						Selelement = driver.findElement(By.xpath(getXPath(element)));
+					}
+				}
+				if (!Selelement.isEnabled() || !Selelement.isDisplayed()) {
+					continue;
+				} else {
+					Selelement = Selelement.findElement(By.xpath("preceding::input[1]"));
 					return Selelement;
 				}
 
@@ -1154,8 +1664,12 @@ public class XpathService {
 				try {
 					selElement = driver.findElement(By.cssSelector(ele.cssSelector()));
 				} catch (Exception e) {
-					selElement = driver.findElement(By.xpath(("\\#root".equalsIgnoreCase(ele.cssSelector())) ? null
-							: CSS2XPath.css2xpath(ele.cssSelector(), true)));
+					try {
+						selElement = driver.findElement(By.xpath(("\\#root".equalsIgnoreCase(ele.cssSelector())) ? null
+								: CSS2XPath.css2xpath(ele.cssSelector(), true)));
+					} catch (Exception ex) {
+						selElement = driver.findElement(By.xpath(getXPath(ele)));
+					}
 				}
 				if (!selElement.isEnabled() || !selElement.isDisplayed()) {
 					continue;
@@ -1167,23 +1681,52 @@ public class XpathService {
 					jsExecutor.executeScript("arguments[0].click();", selElement);
 					String script = "arguments[0].value = arguments[1]";
 					jsExecutor.executeScript(script, selElement, xpath.getInputValue() + " ");
+					try {
+						Thread.sleep(1000);
+					} catch (InterruptedException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
 					selElement.sendKeys(Keys.BACK_SPACE);
 					break;
 				}
 			}
-			List<WebElement> selElement = findDatePicker(ele,
-					Arrays.copyOfRange(splitInputParameter, 1, splitInputParameter.length));
-			if (selElement == null) {
-				continue;
-			} else {
-				selElement.get(0).clear();
-				previousEle = selElement.get(0);
-				JavascriptExecutor jsExecutor = (JavascriptExecutor) driver;
-				jsExecutor.executeScript("arguments[0].click();", selElement.get(0));
-				String script = "arguments[0].value = arguments[1]";
-				jsExecutor.executeScript(script, selElement.get(0), xpath.getInputValue() + " ");
-				selElement.get(0).sendKeys(Keys.BACK_SPACE);
-				break;
+
+			else {
+				WebElement selEle = null;
+				try {
+					selEle = driver.findElement(By.cssSelector(ele.cssSelector()));
+				} catch (Exception e) {
+					try {
+						selEle = driver.findElement(By.xpath(("\\#root".equalsIgnoreCase(ele.cssSelector())) ? null
+								: CSS2XPath.css2xpath(ele.cssSelector(), true)));
+					} catch (Exception ex) {
+						selEle = driver.findElement(By.xpath(getXPath(ele)));
+					}
+				}
+				if (!selEle.isEnabled() || !selEle.isDisplayed()) {
+					continue;
+				}
+				List<WebElement> selElement = findDatePicker(ele,
+						Arrays.copyOfRange(splitInputParameter, 1, splitInputParameter.length));
+				if (selElement == null) {
+					continue;
+				} else {
+					selElement.get(0).clear();
+					previousEle = selElement.get(0);
+					JavascriptExecutor jsExecutor = (JavascriptExecutor) driver;
+					// jsExecutor.executeScript("arguments[0].click();", selElement.get(0));
+					String script = "arguments[0].value = arguments[1]";
+					jsExecutor.executeScript(script, selElement.get(0), xpath.getInputValue() + " ");
+					try {
+						Thread.sleep(1000);
+					} catch (InterruptedException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+					selElement.get(0).sendKeys(Keys.BACK_SPACE);
+					break;
+				}
 			}
 		}
 
@@ -1195,9 +1738,18 @@ public class XpathService {
 	private void selectAvalue(Xpaths xpath) {
 		String[] splitInputParameter = xpath.getInputParameter().split(">");
 		Elements headerElements = null;
-		headerElements = doc.select("*:matchesOwn(^" + splitInputParameter[0] + "$)");
+		String getElementtoCheck = "";
+		if (splitInputParameter.length == 1) {
+			headerElements = doc.select("*[placeholder='" + splitInputParameter[0] + "']");
+			getElementtoCheck = "placeholder";
+		}
+		if (headerElements == null || headerElements.size() == 0) {
+			headerElements = doc.select("*:matchesOwn(^" + splitInputParameter[0] + "$)");
+			getElementtoCheck = "normal";
+		}
 		if (headerElements.size() == 0) {
 			headerElements = doc.select("*[data-value=" + splitInputParameter[0] + "]");
+			getElementtoCheck = "dataValue";
 		}
 		for (Element ele : headerElements) {
 			if (splitInputParameter.length == 1) {
@@ -1206,8 +1758,12 @@ public class XpathService {
 				try {
 					selElement = driver.findElement(By.cssSelector(ele.cssSelector()));
 				} catch (Exception e) {
-					selElement = driver.findElement(By.xpath(("\\#root".equalsIgnoreCase(ele.cssSelector())) ? null
-							: CSS2XPath.css2xpath(ele.cssSelector(), true)));
+					try {
+						selElement = driver.findElement(By.xpath(("\\#root".equalsIgnoreCase(ele.cssSelector())) ? null
+								: CSS2XPath.css2xpath(ele.cssSelector(), true)));
+					} catch (Exception ex) {
+						selElement=driver.findElement(By.xpath(getXPath(ele)));
+					}
 				}
 				if (!selElement.isEnabled() || !selElement.isDisplayed()) {
 					continue;
@@ -1221,16 +1777,21 @@ public class XpathService {
 					if (parent != null) {
 						Elements selectAValueElement = parent.select(":matchesOwn(^" + xpath.getInputValue() + "$)");
 						for (Element element : selectAValueElement) {
-							if (!element.parent().text().equals(element.text())) {
-								continue;
-							}
+							// if (!element.parent().text().equals(element.text())) {
+							// continue;
+							// }
 							WebElement selele = null;
 							try {
 								selele = driver.findElement(By.cssSelector(element.cssSelector()));
 							} catch (Exception e) {
-								selele = driver
-										.findElement(By.xpath(("\\#root".equalsIgnoreCase(element.cssSelector())) ? null
-												: CSS2XPath.css2xpath(element.cssSelector(), true)));
+								try {
+									selele = driver
+											.findElement(
+													By.xpath(("\\#root".equalsIgnoreCase(element.cssSelector())) ? null
+															: CSS2XPath.css2xpath(element.cssSelector(), true)));
+								} catch (Exception ex) {
+									selele = driver.findElement(By.xpath(getXPath(element)));
+								}
 							}
 							if (!selele.isEnabled() || !selele.isDisplayed()) {
 								continue;
@@ -1248,26 +1809,40 @@ public class XpathService {
 								}
 							}
 						}
-						if (flag) {
-							break;
-						}
+						// if (flag) {
+						// break;
+						// }
 					}
 				}
-			}
-			WebElement selElement = findTheElement(ele,
-					Arrays.copyOfRange(splitInputParameter, 1, splitInputParameter.length));
-			if (selElement == null) {
-				continue;
 			} else {
-				selElement.click();
+				WebElement selElement = null;
 				try {
-					selElement.click();
-					break;
+					selElement = driver.findElement(By.cssSelector(ele.cssSelector()));
 				} catch (Exception e) {
-					JavascriptExecutor executor = (JavascriptExecutor) driver;
-					executor.executeScript("arguments[0].click();", selElement);
-					break;
+					try {
+						selElement = driver.findElement(By.xpath(("\\#root".equalsIgnoreCase(ele.cssSelector())) ? null
+								: CSS2XPath.css2xpath(ele.cssSelector(), true)));
+					} catch (Exception ex) {
+						selElement=driver.findElement(By.xpath(getXPath(ele)));
+					}
+				}
+				if (!selElement.isEnabled() || !selElement.isDisplayed()) {
+					continue;
+				}
+				selElement = findTheSelectAVAlueElement(ele,
+						Arrays.copyOfRange(splitInputParameter, 1, splitInputParameter.length), xpath.getInputValue());
+				if (selElement == null) {
+					continue;
+				} else {
+					try {
+						selElement.click();
+						break;
+					} catch (Exception e) {
+						JavascriptExecutor executor = (JavascriptExecutor) driver;
+						executor.executeScript("arguments[0].click();", selElement);
+						break;
 
+					}
 				}
 			}
 		}
@@ -1286,21 +1861,50 @@ public class XpathService {
 		headerElements = doc.select("*:matchesOwn(^" + splitInputParameter[0] + "$)");
 		for (Element ele : headerElements) {
 			if (splitInputParameter.length == 1) {
-				WebElement selElement = driver.findElement(By.cssSelector(ele.cssSelector()));
-				if (!selElement.isEnabled()) {
-					continue;
-				} else {
+				WebElement selElement=null;
+					try {
+						selElement = driver.findElement(By.cssSelector(ele.cssSelector()));
+					} catch (Exception e) {
+						try {
+							selElement = driver
+									.findElement(By.xpath(("\\#root".equalsIgnoreCase(ele.cssSelector())) ? null
+											: CSS2XPath.css2xpath(ele.cssSelector(), true)));
+						} catch (Exception ex) {
+							selElement = driver.findElement(By.xpath(getXPath(ele)));
+						}
+					}
+					if (!selElement.isDisplayed() || !selElement.isEnabled()) {
+						continue;
+					}
+				else {
 					selElement.clear();
 
 				}
 			}
-			WebElement selElement = findTheElement(ele,
+			else{
+				WebElement selElement=null;
+					try {
+						selElement = driver.findElement(By.cssSelector(ele.cssSelector()));
+					} catch (Exception e) {
+						try {
+							selElement = driver
+									.findElement(By.xpath(("\\#root".equalsIgnoreCase(ele.cssSelector())) ? null
+											: CSS2XPath.css2xpath(ele.cssSelector(), true)));
+						} catch (Exception ex) {
+							selElement = driver.findElement(By.xpath(getXPath(ele)));
+						}
+					}
+					if (!selElement.isDisplayed() || !selElement.isEnabled()) {
+						continue;
+					}
+			selElement = findTheElement(ele,
 					Arrays.copyOfRange(splitInputParameter, 1, splitInputParameter.length));
 			if (selElement == null) {
 				continue;
 			} else {
 				selElement.clear();
 			}
+		}
 		}
 
 	}
@@ -1329,8 +1933,12 @@ public class XpathService {
 				try {
 					selElement = driver.findElement(By.cssSelector(ele.cssSelector()));
 				} catch (Exception ex) {
-					selElement = driver.findElement(By.xpath(("\\#root".equalsIgnoreCase(ele.cssSelector())) ? null
-							: CSS2XPath.css2xpath(ele.cssSelector(), true)));
+					try {
+						selElement = driver.findElement(By.xpath(("\\#root".equalsIgnoreCase(ele.cssSelector())) ? null
+								: CSS2XPath.css2xpath(ele.cssSelector(), true)));
+					} catch (Exception e) {
+						selElement = driver.findElement(By.xpath(getXPath(ele)));
+					}
 				}
 				if (!selElement.isEnabled() || !selElement.isDisplayed()) {
 					continue;
@@ -1375,9 +1983,13 @@ public class XpathService {
 					try {
 						Selelement = driver.findElement(By.cssSelector(element.cssSelector()));
 					} catch (Exception ex) {
-						Selelement = driver
-								.findElement(By.xpath(("\\#root".equalsIgnoreCase(element.cssSelector())) ? null
-										: CSS2XPath.css2xpath(element.cssSelector(), true)));
+						try {
+							Selelement = driver
+									.findElement(By.xpath(("\\#root".equalsIgnoreCase(element.cssSelector())) ? null
+											: CSS2XPath.css2xpath(element.cssSelector(), true)));
+						} catch (Exception e) {
+							Selelement = driver.findElement(By.xpath(getXPath(element)));
+						}
 					}
 					if (!Selelement.isEnabled() || !Selelement.isDisplayed()
 					// || !Selelement.isClickable()
@@ -1461,19 +2073,36 @@ public class XpathService {
 
 	// method for click Link
 	private void clickLink(Xpaths xpath) {
-
-		// Elements elements = GettingAllElements(xpath.getAction());
 		String[] splitInputParameter = xpath.getInputParameter().split(">");
 		WebElement cssSelectorEle = null;
 		if (splitInputParameter.length == 1) {
 			Elements elements = doc.select(":matchesOwn(^" + splitInputParameter[0] + "$)");
+			if (elements.size() == 0) {
+				elements = doc.select("*[title='" + splitInputParameter[0] + "']:not(img)");
+			}
+			if (elements.size() == 0) {
+
+				elements = doc.select("input[value='" + splitInputParameter[0] + "']");
+			}
+			if (elements.size() == 0) {
+				String pattern = "^" + splitInputParameter[0] + "[\\p{L}0-9@#$%^\\s].*";
+				elements = doc.select(":matchesOwn(" + pattern + ")");
+			}
+
 			for (Element element : elements) {
 				WebElement ele = null;
 				try {
+
 					ele = driver.findElement(By.cssSelector(element.cssSelector()));
 				} catch (Exception e) {
-					ele = driver.findElement(By.xpath(("\\#root".equalsIgnoreCase(element.cssSelector())) ? null
-							: CSS2XPath.css2xpath(element.cssSelector(), true)));
+					try {
+						ele = driver.findElement(By.xpath(("\\#root".equalsIgnoreCase(element.cssSelector())) ? null
+								: CSS2XPath.css2xpath(element.cssSelector(), true)));
+
+					} catch (Exception ex) {
+						System.out.println(getXPath(element));
+						ele = driver.findElement(By.xpath(getXPath(element)));
+					}
 				}
 				if (!ele.isDisplayed() || !ele.isEnabled()) {
 					continue;
@@ -1498,6 +2127,10 @@ public class XpathService {
 					} catch (Exception exe) {
 						if (elem.attr("id") != "") {
 							headerSelElement = driver.findElement(By.id(elem.attr("id")));
+						} else {
+							headerSelElement = driver
+									.findElement(By.xpath(("\\#root".equalsIgnoreCase(elem.cssSelector())) ? null
+											: CSS2XPath.css2xpath(elem.cssSelector(), true)));
 						}
 
 					}
@@ -1558,6 +2191,7 @@ public class XpathService {
 		ELements elements = new ELements();
 		while (parent != null) {
 			boolean gotElement = false;
+			String pattern = "^" + string + "[\\p{L}0-9@#$%^\\s].*";
 			if (!parent.select(":matchesOwn(^" + string + "$)").isEmpty()) {
 				Elements eles = parent.select(":matchesOwn(^" + string + "$)");
 				for (Element elem : eles) {
@@ -1573,7 +2207,13 @@ public class XpathService {
 								selEle = driver.findElement(By.xpath("//*[@class='" + elem.parent().attr("class")
 										+ "']/child::*[@class='" + elem.attr("class") + "']"));
 							} catch (Exception exep) {
-								continue;
+								parent = elem.parent();
+								while (parent != null && parent.attr("class") == "") {
+									parent = parent.parent();
+								}
+								selEle = driver.findElement(By.xpath("//*[@class='" + parent.attr("class")
+										+ "']/following::*[@class='" + elem.attr("class") + "']"));
+
 							}
 							// continue;
 						}
@@ -1622,6 +2262,25 @@ public class XpathService {
 					}
 				}
 			}
+
+			else if (!parent.select(":matchesOwn(" + pattern + ")").isEmpty()) {
+				Elements eles = parent.select(":matchesOwn(" + pattern + ")");
+				for (Element elem : eles) {
+					WebElement selEle = null;
+					try {
+						selEle = driver.findElement(By.cssSelector(elem.cssSelector()));
+					} catch (Exception ex) {
+						selEle = driver.findElement(By.xpath(("\\#root".equalsIgnoreCase(elem.cssSelector())) ? null
+								: CSS2XPath.css2xpath(elem.cssSelector(), true)));
+					}
+					if (selEle.isDisplayed() && selEle.isEnabled()) {
+						gotElement = true;
+						elements.setWebElement(selEle);
+						elements.setElement(elem);
+						return elements;
+					}
+				}
+			}
 			if (!gotElement) {
 				parent = parent.parent();
 			}
@@ -1639,29 +2298,57 @@ public class XpathService {
 		if (splitInputParameter.length == 1) {
 
 			Elements imagElements = doc.select("*[title='" + splitInputParameter[0] + "']");
+			boolean checkingWhereIamgeFOund = false;
+			if (imagElements.size() == 0) {
+				checkingWhereIamgeFOund = true;
+				imagElements = doc.select(String.format("img[data-key='%s'], svg[data-key='%s']",
+						splitInputParameter[0].toLowerCase(), splitInputParameter[0].toLowerCase()));
+			}
 			for (Element element : imagElements) {
 				WebElement imgElement = null;
 				try {
 					imgElement = driver.findElement(By.cssSelector(element.cssSelector()));
 				} catch (Exception e) {
-					imgElement = driver.findElement(By.xpath(("\\#root".equalsIgnoreCase(element.cssSelector())) ? null
-							: CSS2XPath.css2xpath(element.cssSelector(), true)));
+					try {
+						imgElement = driver
+								.findElement(By.xpath(("\\#root".equalsIgnoreCase(element.cssSelector())) ? null
+										: CSS2XPath.css2xpath(element.cssSelector(), true)));
+					} catch (Exception ex) {
+						imgElement = driver.findElement(By.xpath(getXPath(element)));
+					}
 				}
 				if (!imgElement.isDisplayed() || !imgElement.isEnabled()) {
 					continue;
 				} else {
 					try {
 						imgElement.click();
+						break;
 					} catch (Exception e) {
 						JavascriptExecutor executor = (JavascriptExecutor) driver;
 						executor.executeScript("arguments[0].click();", imgElement);
+						break;
 					}
 				}
 			}
 		} else {
 			Elements headerElements = null;
 			headerElements = doc.select("*:matchesOwn(^" + splitInputParameter[0] + "$)");
+			WebElement imgElement = null;
 			for (Element ele : headerElements) {
+				try {
+					imgElement = driver.findElement(By.cssSelector(ele.cssSelector()));
+				} catch (Exception e) {
+					try {
+						imgElement = driver
+								.findElement(By.xpath(("\\#root".equalsIgnoreCase(ele.cssSelector())) ? null
+										: CSS2XPath.css2xpath(ele.cssSelector(), true)));
+					} catch (Exception ex) {
+						imgElement = driver.findElement(By.xpath(getXPath(ele)));
+					}
+				}
+				if (!imgElement.isDisplayed() || !imgElement.isEnabled()) {
+					continue;
+				}
 				WebElement selElement = findImageElement(ele,
 						Arrays.copyOfRange(splitInputParameter, 1, splitInputParameter.length));
 				if (selElement == null) {
@@ -1701,11 +2388,22 @@ public class XpathService {
 				if (copyOfRange.length > 1) {
 					findImageElement(element, Arrays.copyOfRange(copyOfRange, 1, copyOfRange.length));
 				} else {
-					WebElement Selelement = driver.findElement(By.cssSelector(element.cssSelector()));
-					if (!Selelement.isEnabled() || !Selelement.isDisplayed()) {
+					WebElement imgElement = null;
+					try {
+						imgElement = driver.findElement(By.cssSelector(element.cssSelector()));
+					} catch (Exception e) {
+						try {
+							imgElement = driver
+									.findElement(By.xpath(("\\#root".equalsIgnoreCase(element.cssSelector())) ? null
+											: CSS2XPath.css2xpath(element.cssSelector(), true)));
+						} catch (Exception ex) {
+							imgElement = driver.findElement(By.xpath(getXPath(ele)));
+						}
+					}
+					if (!imgElement.isDisplayed() || !imgElement.isEnabled()) {
 						continue;
 					} else {
-						return Selelement;
+						return imgElement;
 					}
 				}
 			}
@@ -1930,10 +2628,19 @@ public class XpathService {
 				break;
 
 			} else if (element.attr("title").equals(xpath.getInputParameter())) {
+				CssSelector = element.cssSelector();
+				break;
+			} else if (element.attr("title").equals(xpath.getInputParameter())) {
 
 			}
 		}
-		WebElement frameElement = driver.findElement(By.cssSelector(CssSelector));
+		WebElement frameElement = null;
+		try {
+			frameElement = driver.findElement(By.cssSelector(CssSelector));
+		} catch (Exception e) {
+			frameElement = driver.findElement(By.xpath(("\\#root".equalsIgnoreCase(CssSelector)) ? null
+					: CSS2XPath.css2xpath(CssSelector, true)));
+		}
 		synchronized (frameElement) {
 			while (frameElement == null) {
 				try {
@@ -1964,7 +2671,7 @@ public class XpathService {
 						selElement = driver.findElement(By.xpath(("\\#root".equalsIgnoreCase(ele.cssSelector())) ? null
 								: CSS2XPath.css2xpath(ele.cssSelector(), true)));
 					} catch (Exception ex) {
-						selElement = driver.findElement(By.xpath("//*[text()='" + splitInputParameter[0] + "']"));
+						selElement = driver.findElement(By.xpath(getXPath(ele)));
 					}
 				}
 				if (!selElement.isEnabled() || !selElement.isDisplayed()) {
@@ -1977,17 +2684,32 @@ public class XpathService {
 					jsExecutor.executeScript(script, selElement, xpath.getInputValue());
 					break;
 				}
-			}
-			WebElement selElement = findTheTextAreaElement(ele,
-					Arrays.copyOfRange(splitInputParameter, 1, splitInputParameter.length));
-			if (selElement == null) {
-				continue;
 			} else {
-				selElement.clear();
-				JavascriptExecutor jsExecutor = (JavascriptExecutor) driver;
-				String script = "arguments[0].value = arguments[1]";
-				jsExecutor.executeScript(script, selElement, xpath.getInputValue());
-				break;
+				WebElement selElement = null;
+				try {
+					selElement = driver.findElement(By.cssSelector(ele.cssSelector()));
+				} catch (Exception e) {
+					try {
+						selElement = driver.findElement(By.xpath(("\\#root".equalsIgnoreCase(ele.cssSelector())) ? null
+								: CSS2XPath.css2xpath(ele.cssSelector(), true)));
+					} catch (Exception ex) {
+						selElement = driver.findElement(By.xpath(getXPath(ele)));
+					}
+				}
+				if (!selElement.isEnabled() || !selElement.isDisplayed()) {
+					continue;
+				}
+				selElement = findTheTextAreaElement(ele,
+						Arrays.copyOfRange(splitInputParameter, 1, splitInputParameter.length));
+				if (selElement == null) {
+					continue;
+				} else {
+					selElement.clear();
+					JavascriptExecutor jsExecutor = (JavascriptExecutor) driver;
+					String script = "arguments[0].value = arguments[1]";
+					jsExecutor.executeScript(script, selElement, xpath.getInputValue());
+					break;
+				}
 			}
 		}
 
@@ -2004,7 +2726,18 @@ public class XpathService {
 				if (copyOfRange.length > 1) {
 					findTheTextAreaElement(element, Arrays.copyOfRange(copyOfRange, 1, copyOfRange.length));
 				} else {
-					WebElement Selelement = driver.findElement(By.cssSelector(element.cssSelector()));
+					WebElement Selelement = null;
+					try {
+						Selelement = driver.findElement(By.cssSelector(element.cssSelector()));
+					} catch (Exception e) {
+						try {
+							Selelement = driver
+									.findElement(By.xpath(("\\#root".equalsIgnoreCase(element.cssSelector())) ? null
+											: CSS2XPath.css2xpath(element.cssSelector(), true)));
+						} catch (Exception ex) {
+							Selelement = driver.findElement(By.xpath(getXPath(element)));
+						}
+					}
 					Selelement = Selelement.findElement(By.xpath("./following::textarea"));
 					if (!Selelement.isEnabled()) {
 						continue;
@@ -2124,10 +2857,42 @@ public class XpathService {
 			case "getAllElements":
 				elements = doc.select("*");
 				break;
+			case "switchToFrame":
+				elements = doc.select("iframe");
+				break;
 			default:
 				elements = doc.select("*");
 				break;
 		}
 		return elements;
 	}
+
+	private static String getXPath(Element element) {
+		StringBuilder xpath = new StringBuilder();
+		while (element != null) {
+			int index = getElementIndex(element);
+			String tagName = element.tagName();
+			xpath.insert(0, "/" + tagName + "[" + index + "]");
+			element = element.parent();
+			if (element.tagName().equals("body")) {
+				xpath.insert(0, "/html/body");
+				break;
+			}
+		}
+		return xpath.toString();
+	}
+
+	private static int getElementIndex(Element element) {
+		int index = 1;
+		for (Element sibling : element.parent().children()) {
+			if (sibling.tagName().equals(element.tagName())) {
+				if (sibling == element) {
+					return index;
+				}
+				index++;
+			}
+		}
+		return index;
+	}
+
 }
